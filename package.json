@@ -1,0 +1,23 @@
+{
+  "name": "@taruvi/sdk",
+  "version": "1.0.0",
+  "description": "Taruvi SDK",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "taruvi",
+    "sdk",
+    "EOX Vantage"
+  ],
+  "author": "EOX Vantage",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.1.0"
+  }
+}
