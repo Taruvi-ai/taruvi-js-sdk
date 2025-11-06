@@ -16,6 +16,10 @@ export class Client {
             throw new Error("API key is required")
         }
 
+        if (!config.appSlug) {
+            throw new Error("App slug is required")
+        }
+
         if (!config.baseUrl) {
             throw new Error("Base URL is required")
         }

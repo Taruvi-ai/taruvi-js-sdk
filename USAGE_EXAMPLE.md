@@ -9,7 +9,8 @@ import { Client, Auth, User, Database } from '@taruvi/sdk'
 
 // 1. Create the main client (can create multiple instances)
 const client = new Client({
-  apiKey: 'your-api-key',
+  apiKey: 'your-site-key',
+  appSlug: 'my-app',
   baseUrl: 'https://api.taruvi.com',
   token: 'optional-initial-token' // optional
 })
@@ -41,11 +42,13 @@ You can now create multiple instances for different environments or configs:
 ```typescript
 const prodClient = new Client({
   apiKey: 'prod-key',
+    appSlug: 'main-app',
   baseUrl: 'https://api.taruvi.com'
 })
 
 const devClient = new Client({
   apiKey: 'dev-key',
+    appSlug: 'dev-app',
   baseUrl: 'https://dev-api.taruvi.com'
 })
 

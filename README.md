@@ -10,6 +10,12 @@
 - **Tree-Shakable** - Optimized for minimal bundle size
 - **Testable** - Easy to mock and test with dependency injection
 - **Flexible** - Support for multiple instances and configurations
+- **Modern Architecture** - Dependency injection pattern, no singletons
+- **Type-Safe** - Full TypeScript support with strict typing
+- **Lazy Loading** - Only bundle the services you use
+- **Tree-Shakable** - Optimized for minimal bundle size
+- **Testable** - Easy to mock and test with dependency injection
+- **Flexible** - Support for multiple instances and configurations
 
 ## Installation
 
@@ -24,7 +30,8 @@ import { Client, Auth, User, Database } from '@taruvi/sdk'
 
 // 1. Create the main client
 const client = new Client({
-  apiKey: 'your-api-key',
+  apiKey: 'your-site-api-key',
+  appSlug: 'my-app',
   baseUrl: 'https://api.taruvi.com'
 })
 
@@ -42,7 +49,9 @@ const database = new Database(client)
 The Taruvi SDK provides the following service clients:
 
 ### Auth
+
 Authentication and session management
+
 - SSO authentication
 - Password authentication
 - Session management
@@ -51,14 +60,16 @@ Authentication and session management
 ```typescript
 import { Client, Auth } from '@taruvi/sdk'
 
-const client = new Client({ apiKey: '...', baseUrl: '...' })
+const client = new Client({ apiKey: '...', appSlug: '...', baseUrl: '...' })
 const auth = new Auth(client)
 
 // TODO: Methods will be implemented
 ```
 
 ### User
+
 User profile and management
+
 - Get user details
 - Update user profile
 - Manage user data
@@ -66,14 +77,16 @@ User profile and management
 ```typescript
 import { Client, User } from '@taruvi/sdk'
 
-const client = new Client({ apiKey: '...', baseUrl: '...' })
+const client = new Client({ apiKey: '...', appSlug: '...', baseUrl: '...' })
 const user = new User(client)
 
 // TODO: Methods will be implemented
 ```
 
 ### Database
+
 Database operations with query builder
+
 - CRUD operations
 - Query filtering
 - Sorting and pagination
@@ -82,14 +95,16 @@ Database operations with query builder
 ```typescript
 import { Client, Database } from '@taruvi/sdk'
 
-const client = new Client({ apiKey: '...', baseUrl: '...' })
+const client = new Client({ apiKey: '...', appSlug: '...', baseUrl: '...' })
 const database = new Database(client)
 
 // TODO: Methods will be implemented
 ```
 
 ### Storage
+
 File storage and management
+
 - Upload files
 - Download files
 - Delete files
@@ -98,14 +113,16 @@ File storage and management
 ```typescript
 import { Client, Storage } from '@taruvi/sdk'
 
-const client = new Client({ apiKey: '...', baseUrl: '...' })
+const client = new Client({ apiKey: '...', appSlug: '...', baseUrl: '...' })
 const storage = new Storage(client)
 
 // TODO: Methods will be implemented
 ```
 
 ### Functions
+
 Edge functions (serverless)
+
 - Invoke functions
 - Stream responses
 - Get function logs
@@ -114,7 +131,7 @@ Edge functions (serverless)
 ```typescript
 import { Client, Functions } from '@taruvi/sdk'
 
-const client = new Client({ apiKey: '...', baseUrl: '...' })
+const client = new Client({ apiKey: '...', appSlug: '...', baseUrl: '...' })
 const functions = new Functions(client)
 
 // TODO: Methods will be implemented
@@ -128,9 +145,10 @@ const functions = new Functions(client)
 import { Client } from '@taruvi/sdk'
 
 const client = new Client({
-  apiKey: 'your-api-key',        // Required: Your API key
-  baseUrl: 'https://api.taruvi.com', // Required: API base URL
-  token: 'optional-token'        // Optional: Pre-existing auth token
+  apiKey: 'your-site-key',               // Required: Site API key
+  appSlug: 'my-app',                     // Required: App identifier
+  baseUrl: 'https://api.taruvi.com',     // Required: API base URL
+  token: 'optional-token'                // Optional: Pre-existing auth token
 })
 ```
 
@@ -138,10 +156,35 @@ const client = new Client({
 
 ```typescript
 interface TaruviConfig {
-  apiKey: string
-  baseUrl: string
-  token?: string
+  apiKey: string      // Identifies which site the client belongs to
+  appSlug: string     // Identifies which app the client belongs to
+  baseUrl: string     // API endpoint URL
+  token?: string      // Optional: Pre-existing auth token
 }
+```
+
+### Multi-App Setup
+
+The `appSlug` parameter enables a single site to manage multiple applications with isolated data:
+
+```typescript
+// Main app
+const mainAppClient = new Client({
+  apiKey: 'site-key',
+  appSlug: 'main-app',
+  baseUrl: 'https://api.taruvi.com'
+})
+
+// Admin app
+const adminAppClient = new Client({
+  apiKey: 'site-key',
+  appSlug: 'admin-app',
+  baseUrl: 'https://api.taruvi.com'
+})
+
+// Each app has isolated users, data, and configurations
+const mainAuth = new Auth(mainAppClient)
+const adminAuth = new Auth(adminAppClient)
 ```
 
 ## Advanced Usage
@@ -279,24 +322,42 @@ src/
 ├── client.ts                 # Main Client class
 ├── index.ts                  # Public exports
 └── types.ts                  # Shared types
+├── lib/                      # Public API
+│   ├── auth/                 # Auth service
+│   ├── user/                 # User service
+│   ├── database/             # Database service
+│   ├── storage/              # Storage service
+│   └── function/             # Functions service
+├── lib-internal/             # Internal utilities (not public)
+│   ├── http/                 # HTTP client
+│   ├── token/                # Token management
+│   ├── errors/               # Error handling
+│   └── routes/               # API route definitions
+├── client.ts                 # Main Client class
+├── index.ts                  # Public exports
+└── types.ts                  # Shared types
 ```
 
 ### Internal vs Public API
 
 **Public API** (safe to use):
+
 - `Client` - Main client class
 - `Auth`, `User`, `Database`, `Storage`, `Functions` - Service clients
 - `TaruviConfig` - Configuration type
 
 **Internal API** (do not use):
+
 - `client.httpClient` - Marked with `@internal`
 - `client.tokenClient` - Marked with `@internal`
 - Files in `lib-internal/` folder
 
 > ⚠️ **Warning:** Using internal APIs may break in future versions without notice
+> ⚠️ **Warning:** Using internal APIs may break in future versions without notice
 
 ## Development Status
 
+⚠️ **This SDK is currently in active development**
 ⚠️ **This SDK is currently in active development**
 
 Current status of service implementations:
@@ -307,6 +368,24 @@ Current status of service implementations:
 - 📋 Database service (planned)
 - 📋 Storage service (planned)
 - 📋 Functions service (planned)
+- ✅ Core architecture and client initialization
+- 🚧 Auth service (in progress)
+- 🚧 User service (in progress)
+- 📋 Database service (planned)
+- 📋 Storage service (planned)
+- 📋 Functions service (planned)
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+For questions and support, please open an issue on GitHub.
 
 ## License
 

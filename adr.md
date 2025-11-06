@@ -114,23 +114,28 @@ const user = new User(client)
 - Makes clients easier to test with mock dependencies
 - Enables cross-cutting concerns (logging, retry logic) in one place
 
-### 5. Minimal Configuration Surface
+### 5. Multi-Tenant Configuration with App Identification
 
-**Decision:** Require only essential configuration: `baseUrl` and `apiKey` (with optional `token`).
+**Decision:** Require essential configuration parameters that identify both the site and the specific app: `apiKey`, `appSlug`, and `baseUrl` (with optional `token`).
 
 ```typescript
 interface TaruviConfig {
-    baseUrl: string
-    apiKey: string
-    token?: string
+    apiKey: string      // Identifies which site the client belongs to
+    appSlug: string     // Identifies which app the client belongs to
+    baseUrl: string     // API endpoint URL
+    token?: string      // Optional: Pre-existing auth token
 }
 ```
 
 **Rationale:**
-- Reduces cognitive load for developers
-- Prevents misconfiguration
-- Sane defaults for non-critical settings
-- Easy to extend with optional parameters later
+- **Multi-App Support:** `appSlug` enables a single site to manage multiple applications
+- **Site Identification:** `apiKey` authenticates and identifies the site/organization
+- **App Isolation:** Each app can have isolated data, users, and configurations
+- **Flexibility:** Supports various deployment scenarios (multi-tenant SaaS, white-label solutions)
+- **Security:** Clear separation between site-level and app-level access control
+- **Reduces cognitive load** for developers with clear, minimal configuration
+- **Prevents misconfiguration** through required parameters
+- **Easy to extend** with optional parameters later
 
 ### 6. Centralized Route Management in `lib-internal/routes`
 
@@ -300,8 +305,9 @@ src/
 import { Client, Auth, User, Storage } from '@taruvi/sdk'
 
 const client = new Client({
-    baseUrl: 'https://api.taruvi.com',
-    apiKey: 'your-api-key'
+    apiKey: 'your-site-api-key',
+    appSlug: 'my-app',
+    baseUrl: 'https://api.taruvi.com'
 })
 
 // Create only the service clients you need
@@ -326,7 +332,11 @@ import { createContext, useContext } from 'react'
 const TaruviContext = createContext<Client | null>(null)
 
 export function TaruviProvider({ children }) {
-    const client = new Client({ baseUrl: '...', apiKey: '...' })
+    const client = new Client({
+        apiKey: '...',
+        appSlug: '...',
+        baseUrl: '...'
+    })
     return <TaruviContext.Provider value={client}>{children}</TaruviContext.Provider>
 }
 
