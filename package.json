@@ -1,5 +1,5 @@
 {
-  "name": "@taruvi/sdk",
+  "name": "@taruvi-io/sdk",
   "version": "1.0.0",
   "description": "Taruvi SDK",
   "main": "src/index.ts",
@@ -15,9 +15,12 @@
   "author": "EOX Vantage",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^24.10.1",
     "typescript": "^5.7.3"
   },
-  "dependencies": {
-    "cross-fetch": "^4.1.0"
+  "peerDependencies": {
+    "@types/node": "^18.0.0 || ^20.0.0 || ^22.0.0",
+    "axios": "^1.0.0",
+    "mime-db": "^1.54.0"
   }
 }

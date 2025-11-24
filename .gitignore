@@ -3,3 +3,9 @@ node_modules
 dist
 STRUCTURE_REVIEW.md
 taruvi-sdk-structure.plan.md
+adr.md
+SDK_DESIGN_CONTEXT.md
+STORAGE_USAGE_EXAMPLES.md
+Taruvi API_lates.yaml
+.env
+adr.md

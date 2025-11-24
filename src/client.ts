@@ -16,10 +16,6 @@ export class Client {
             throw new Error("API key is required")
         }
 
-        if (!config.appSlug) {
-            throw new Error("App slug is required")
-        }
-
         if (!config.baseUrl) {
             throw new Error("Base URL is required")
         }
@@ -27,8 +23,10 @@ export class Client {
         this.config = config
 
         // Internal clients for SDK use only
-        this._httpClient = new HttpClient(this.config)
+        // TokenClient must be created first, then passed to HttpClient
+
         this._tokenClient = new TokenClient(config.token)
+        this._httpClient = new HttpClient(this.config, this._tokenClient)
     }
 
     /**
