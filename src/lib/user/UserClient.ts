@@ -1,6 +1,7 @@
 import type { Client } from "../../client.js";
-import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserUpdateRequest } from "./types.js";
+import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserList, UserUpdateRequest } from "./types.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
+import { buildQueryString } from "../../utils/utils.js";
 
 
 export class User {
@@ -10,31 +11,34 @@ export class User {
         this.client = client
     }
     
-    // - getUser (fetch user details from API)
     // - getUserProfile
     async getUserData(): Promise<UserDataResponse> {
-        return this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser)
+        return await this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser())
     }
 
     // - updateUser
     async updateUser(username: string, body: UserUpdateRequest): Promise<UserCreateResponse> {
-        return this.client.httpClient.put(UserRoutes.updateUser(username), body)
+        return await this.client.httpClient.put(UserRoutes.updateUser(username), body)
+    }
+
+    async list(filters: UserList) {
+        const queryString = buildQueryString(filters as unknown as Record<string, unknown>)
+        return await this.client.httpClient.get(UserRoutes.listUser(queryString))
     }
 
     // - createUser
     async createUser(userData: UserCreateRequest): Promise<UserCreateResponse> {
-        return this.client.httpClient.post<UserCreateResponse, UserCreateRequest>(
-            UserRoutes.createNewUser,
+        return await this.client.httpClient.post<UserCreateResponse, UserCreateRequest>(
+            UserRoutes.baseUrl,
             userData
         )
     }
 
     // - deleteUser
     async deleteUser(username: string): Promise<void> {
-        await this.client.httpClient.delete(UserRoutes.deleteUser(username))
+        return await this.client.httpClient.delete(UserRoutes.deleteUser(username))
     }
 
-    // - deleteUser
     // TODO: Implement user management methods
     // - token getter (access JWT token)
 }

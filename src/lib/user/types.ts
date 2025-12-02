@@ -56,3 +56,14 @@ export interface UserUpdateResponse {
     is_staff: boolean,
     attributes: string
 }
+
+export interface UserList {
+    search: string
+    is_active: boolean
+    is_staff: boolean
+    is_superuser: boolean
+    is_deleted: boolean
+    ordering: string
+    page: Number
+    page_size: Number
+}

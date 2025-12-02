@@ -1,6 +1,9 @@
+import type { UserList } from "../../lib/user/types.js";
+
 export const UserRoutes = {
-    getCurrentUser: "api/users/me/",
-    createNewUser: "api/users/",
-    updateUser: (username: string) => `api/users/${username}`,
-    deleteUser: (username: string) => `api/users/${username}`
+    baseUrl: "api/users/",
+    getCurrentUser: () => `${UserRoutes.baseUrl}me/`,
+    updateUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
+    deleteUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
+    listUser: (filter: string) => `${UserRoutes.baseUrl}${filter}`
 } as const

@@ -19,9 +19,12 @@ export class HttpClient {
         this.tokenClient = tokenClient
     }
 
-    private getAuthHeaders(): Record<string, string> {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json'
+    private getAuthHeaders(isFormData: boolean = false): Record<string, string> {
+        const headers: Record<string, string> = {}
+
+        // Don't set Content-Type for FormData - let axios set it with the boundary
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json'
         }
 
         // Site/app API key (developer authentication)
@@ -46,42 +49,46 @@ export class HttpClient {
     }
 
     async post<T, D = any>(endpoint: string, body: D): Promise<T> {
+        const isFormData = body instanceof FormData
         const { data } = await axios.post<T>(
             `${this.config.baseUrl}/${endpoint}`,
             body,
             {
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(isFormData)
             }
         )
         return data
     }
 
     async put<T, D = any>(endpoint: string, body: D) {
+        const isFormData = body instanceof FormData
         const { data } = await axios.put<T>(`${this.config.baseUrl}/${endpoint}`,
             body,
             {
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(isFormData)
             })
 
         return data
     }
 
-    async delete<T>(endpoint: string): Promise<T> {
+    async delete<T, D = any>(endpoint: string, body?: D): Promise<T> {
         const { data } = await axios.delete<T>(
             `${this.config.baseUrl}/${endpoint}`,
             {
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(),
+                data: body
             }
         )
         return data
     }
 
     async patch<T, D = any>(endpoint: string, body: D): Promise<T> {
+        const isFormData = body instanceof FormData
         const { data } = await axios.patch<T>(
             `${this.config.baseUrl}/${endpoint}`,
             body,
             {
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(isFormData)
             }
         )
         return data

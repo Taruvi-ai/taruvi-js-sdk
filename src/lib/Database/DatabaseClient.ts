@@ -1,8 +1,9 @@
 import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
-import type { TaruviConfig } from "../../types.js";
+import type { TaruviConfig, DatabaseFilters } from "../../types.js";
 import type { UrlParams } from "./types.js";
+import { buildQueryString } from "../../utils/utils.js";
 
 // Used to access app data
 export class Database {
@@ -11,17 +12,23 @@ export class Database {
     private config: TaruviConfig
     private operation: HttpMethod | undefined
     private body: object | undefined
+    private filters: DatabaseFilters | undefined
 
-    constructor(client: Client, urlParams: UrlParams, operation?: HttpMethod | undefined, body?: object | undefined) {
+    constructor(client: Client, urlParams: UrlParams, operation?: HttpMethod | undefined, body?: object | undefined, filters?: DatabaseFilters) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
         this.body = body
         this.config = this.client.getConfig()
+        this.filters = filters
     }
 
     from(dataTables: string): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams, dataTables })
+        return new Database(this.client, { ...this.urlParams, dataTables }, undefined, undefined)
+    }
+
+    filter(filters: DatabaseFilters): Database {
+        return new Database(this.client, { ...this.urlParams }, undefined, undefined, filters)
     }
 
     get(recordId: string): Database {
@@ -38,11 +45,11 @@ export class Database {
 
     private buildRoute(): string {
         return DatabaseRoutes.baseUrl(this.config.appSlug) + Object.keys(this.urlParams).reduce((acc, key) => {
-            if (this.urlParams[key]) {
-                acc += StorageRoutes[key](this.urlParams[key])
+            if (this.urlParams[key] && DatabaseRoutes[key]) {
+                acc += DatabaseRoutes[key](this.urlParams[key])
             }
             return acc
-        }, "") + "/"
+        }, "") + "/" + buildQueryString(this.filters)
     }
 
     async execute() {
