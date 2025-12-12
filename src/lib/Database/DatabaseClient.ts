@@ -55,26 +55,26 @@ export class Database {
     async execute() {
         // Build the API URL
         const url = this.buildRoute()
-        const fullUrl = `sites/eox_site/${url}` //remove for productions because baseurl is in the appscope, no need for site
+        // const fullUrl = `sites/eox_site/${url}` //remove for productions because baseurl is in the appscope, no need for site
 
         const operation = this.operation || HttpMethod.GET
 
         switch (operation) {
             case HttpMethod.POST:
-                return await this.client.httpClient.post(fullUrl, this.body)
+                return await this.client.httpClient.post(url, this.body)
 
             case HttpMethod.PUT:
                 if (!this.urlParams.recordId) {
                     throw new Error('PUT operation requires a record ID. Use .get(recordId) before .update()')
                 }
-                return await this.client.httpClient.put(fullUrl, this.body)
+                return await this.client.httpClient.put(url, this.body)
 
             case HttpMethod.DELETE:
-                return await this.client.httpClient.delete(fullUrl)
+                return await this.client.httpClient.delete(url)
 
             case HttpMethod.GET:
             default:
-                return await this.client.httpClient.get(fullUrl)
+                return await this.client.httpClient.get(url)
         }
     }
 }

@@ -27,11 +27,6 @@ export class HttpClient {
             headers['Content-Type'] = 'application/json'
         }
 
-        // Site/app API key (developer authentication)
-        if (this.config.apiKey) {
-            headers['Authorization'] = `Token ${this.config.apiKey}`
-        }
-
         // Tenant admin session token
         const jwt = this.tokenClient.getToken()
         if (jwt) {

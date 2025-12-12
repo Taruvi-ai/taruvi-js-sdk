@@ -1,6 +1,6 @@
 {
   "name": "@taruvi/sdk",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Taruvi SDK",
   "main": "src/index.ts",
   "type": "module",
@@ -12,7 +12,7 @@
     "sdk",
     "EOX Vantage"
   ],
-  "author": "EOX Vantage",
+  "author": "Curran C Doddabele",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.10.1",
