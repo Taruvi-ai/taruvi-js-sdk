@@ -27,6 +27,36 @@ export class Client {
 
         this._tokenClient = new TokenClient(config.token)
         this._httpClient = new HttpClient(this.config, this._tokenClient)
+
+        // Check URL hash for tokens (OAuth callback)
+        this.extractTokensFromUrl()
+    }
+
+    /**
+     * Extracts access_token and refresh_token from URL hash and stores them in localStorage.
+     * This handles OAuth callback URLs like: #access_token=xxx&refresh_token=xxx
+     */
+    private extractTokensFromUrl(): void {
+        if (typeof window === "undefined" || typeof localStorage === "undefined") {
+            return
+        }
+
+        const hash = window.location.hash
+        if (!hash) {
+            return
+        }
+
+        const params = new URLSearchParams(hash.substring(1))
+        const accessToken = params.get("access_token")
+        const refreshToken = params.get("refresh_token")
+
+        if (accessToken) {
+            localStorage.setItem("jwt", accessToken)
+        }
+
+        if (refreshToken) {
+            localStorage.setItem("refresh_token", refreshToken)
+        }
     }
 
     /**

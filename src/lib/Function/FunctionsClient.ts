@@ -17,7 +17,9 @@ export class Functions {
 
         const body = {
             async: options.async ?? false,
-            ...options.params
+            params: {   
+                ...options.params
+            }
         }
 
         return await this.client.httpClient.post<FunctionResponse<T>>(url, body)

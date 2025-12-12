@@ -1,5 +1,6 @@
 import type { Client } from "../../client.js";
 import { User } from "../user/UserClient.js";
+import { Settings } from "../Settings/SettingsClient.js";
 
 // handles user auth not dev auth
 export class Auth {
@@ -33,16 +34,24 @@ export class Auth {
         await fetch("https://test-api.taruvi.cloud/api/v1/auth/login", requestOptions)
             .then((response) => response.json())
             .then((result) => {
-                localStorage.setItem("sessionid", result.meta.session_token)
-                localStorage.setItem("is_authenticated", result.meta.is_authenticated)
+                localStorage.setItem("jwt", result.meta.accesstoken)
             })
             .catch((error) => console.error(error));
     }
 
     async isUserAuthenticated(): Promise<boolean> {
-        //replace with real userAuthCode
-        const authValue = localStorage.getItem("sessionid")
+        const authValue = localStorage.getItem("jwt")
         return authValue ? true : false
+    }
+
+    async redirectToLogin() {
+        const settings = new Settings(this.client)
+        // let { frontEndUrl } = await settings.get().execute()
+        let frontEndUrl
+        const currentUrl = window.location.href
+        
+        if (!frontEndUrl) frontEndUrl = this.client.getConfig().deskUrl
+        window.location.href = frontEndUrl + `?redirect=${currentUrl}`
     }
 
     // TODO: Implement authentication methods

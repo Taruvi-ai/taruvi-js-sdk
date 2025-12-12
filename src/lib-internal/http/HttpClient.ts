@@ -32,10 +32,10 @@ export class HttpClient {
             headers['Authorization'] = `Token ${this.config.apiKey}`
         }
 
-        // Tenant adming session token
-        const sessionToken = localStorage.getItem("sessionid")
-        if (sessionToken) {
-            headers['X-Session-Token'] = sessionToken
+        // Tenant admin session token
+        const jwt = this.tokenClient.getToken()
+        if (jwt) {
+            headers['Authorization'] = `Bearer ${jwt}`
         }
 
         return headers

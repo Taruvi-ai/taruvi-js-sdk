@@ -15,7 +15,7 @@ export class TokenClient {
     getToken(): string | null {
         if (this.browserRunTime) {
             // return localStorage.getItem("")
-            return localStorage.getItem("sessionid")
+            return localStorage.getItem("jwt")
         }
         return null
         // return this.tenantAdminToken

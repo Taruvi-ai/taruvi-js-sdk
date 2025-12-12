@@ -1,5 +1,5 @@
 {
-  "name": "@taruvi-io/sdk",
+  "name": "@taruvi/sdk",
   "version": "1.0.0",
   "description": "Taruvi SDK",
   "main": "src/index.ts",
@@ -20,7 +20,6 @@
   },
   "peerDependencies": {
     "@types/node": "^18.0.0 || ^20.0.0 || ^22.0.0",
-    "axios": "^1.0.0",
-    "mime-db": "^1.54.0"
+    "axios": "^1.0.0"
   }
 }
