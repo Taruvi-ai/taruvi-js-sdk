@@ -33,8 +33,11 @@ export class Client {
     }
 
     /**
-     * Extracts access_token and refresh_token from URL hash and stores them in localStorage.
-     * This handles OAuth callback URLs like: #access_token=xxx&refresh_token=xxx
+     * Extracts authentication tokens from URL hash and stores them using TokenClient.
+     * This handles Web UI Flow callback URLs like:
+     * #session_token=xxx&access_token=yyy&refresh_token=zzz&expires_in=172800&token_type=Bearer
+     *
+     * After successful extraction, the URL hash is cleared to prevent token exposure.
      */
     private extractTokensFromUrl(): void {
         if (typeof window === "undefined" || typeof localStorage === "undefined") {
@@ -47,15 +50,38 @@ export class Client {
         }
 
         const params = new URLSearchParams(hash.substring(1))
+        const sessionToken = params.get("session_token")
         const accessToken = params.get("access_token")
         const refreshToken = params.get("refresh_token")
+        const expiresIn = params.get("expires_in")
+        const tokenType = params.get("token_type")
 
-        if (accessToken) {
-            localStorage.setItem("jwt", accessToken)
+        // Only proceed if we have the required tokens
+        if (!accessToken || !refreshToken) {
+            return
         }
 
-        if (refreshToken) {
-            localStorage.setItem("refresh_token", refreshToken)
+        // Store tokens using TokenClient
+        const tokens: any = {
+            accessToken,
+            refreshToken,
+            tokenType: tokenType || "Bearer"
+        }
+
+        if (sessionToken) {
+            tokens.sessionToken = sessionToken
+        }
+
+        if (expiresIn) {
+            tokens.expiresIn = parseInt(expiresIn, 10)
+        }
+
+        this._tokenClient.setTokens(tokens)
+
+        // Clear hash from URL without reloading page
+        if (window.history && window.history.replaceState) {
+            const urlWithoutHash = window.location.pathname + window.location.search
+            window.history.replaceState(null, "", urlWithoutHash)
         }
     }
 

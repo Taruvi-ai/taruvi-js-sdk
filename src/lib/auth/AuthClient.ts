@@ -1,8 +1,15 @@
 import type { Client } from "../../client.js";
-import { User } from "../user/UserClient.js";
-import { Settings } from "../Settings/SettingsClient.js";
 
-// handles user auth not dev auth
+/**
+ * Auth Client - Handles user authentication using Web UI Flow
+ * Implements cross-domain authentication with redirect-based token delivery
+ *
+ * Flow:
+ * 1. User calls login() → Redirects to backend /accounts/login/
+ * 2. User authenticates on backend
+ * 3. Backend redirects back with tokens in URL hash
+ * 4. Client extracts and stores tokens automatically
+ */
 export class Auth {
     private client: Client
 
@@ -10,55 +17,201 @@ export class Auth {
         this.client = client
     }
 
-    async authenticateUser() {
-    //     const myHeaders = new Headers();
-    //     myHeaders.append("sec-ch-ua-platform", "\"Linux\"");
-    //     myHeaders.append("Referer", "http://localhost:5173/");
-    //     myHeaders.append("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36");
-    //     myHeaders.append("sec-ch-ua", "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"");
-    //     myHeaders.append("Content-Type", "application/json");
-    //     myHeaders.append("sec-ch-ua-mobile", "?0");
+    /**
+     * Redirect to login page (Web UI Flow)
+     * @param callbackUrl - URL to redirect to after successful login (defaults to current page)
+     */
+    login(callbackUrl?: string): void {
+        if (typeof window === "undefined") {
+            console.error("login() can only be called in browser environment")
+            return
+        }
 
-    //     const raw = JSON.stringify({
-    //         "password": "admin123",
-    //         "email": "admin@example.com"
-    //     });
+        const config = this.client.getConfig()
+        const callback = callbackUrl || window.location.origin + window.location.pathname
 
-    //     const requestOptions: RequestInit = {
-    //         method: "POST",
-    //         headers: myHeaders,
-    //         body: raw,
-    //         redirect: "follow"
-    //     };
+        // Redirect to /accounts/login/ with redirect_to parameter
+        const loginUrl = `${config.baseUrl}/accounts/login/?redirect_to=${encodeURIComponent(callback)}`
 
-    //     await fetch("https://test-api.taruvi.cloud/api/v1/auth/login", requestOptions)
-    //         .then((response) => response.json())
-    //         .then((result) => {
-    //             localStorage.setItem("jwt", result.meta.accesstoken)
-    //         })
-    //         .catch((error) => console.error(error));
+        // Optional: Store state before redirecting
+        if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("auth_state", JSON.stringify({
+                returnTo: window.location.pathname,
+                timestamp: Date.now()
+            }))
+        }
+
+        window.location.href = loginUrl
     }
 
-    async isUserAuthenticated(): Promise<boolean> {
-        const authValue = localStorage.getItem("jwt")
-        return authValue ? true : false
+    /**
+     * Redirect to signup page (Web UI Flow)
+     * @param callbackUrl - URL to redirect to after successful signup (defaults to current page)
+     */
+    signup(callbackUrl?: string): void {
+        if (typeof window === "undefined") {
+            console.error("signup() can only be called in browser environment")
+            return
+        }
+
+        const config = this.client.getConfig()
+        const callback = callbackUrl || window.location.origin + window.location.pathname
+
+        // Redirect to /accounts/signup/ with redirect_to parameter
+        const signupUrl = `${config.baseUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
+
+        // Optional: Store state before redirecting
+        if (typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem("auth_state", JSON.stringify({
+                returnTo: window.location.pathname,
+                timestamp: Date.now()
+            }))
+        }
+
+        window.location.href = signupUrl
     }
 
-    async redirectToLogin() {
-        const settings = new Settings(this.client)
-        // let { frontEndUrl } = await settings.get().execute()
-        let frontEndUrl
-        const currentUrl = window.location.href
-        
-        if (!frontEndUrl) frontEndUrl = this.client.getConfig().deskUrl
-        window.location.href = frontEndUrl + `?redirect=${currentUrl}`
+    /**
+     * Logout user and redirect to logout page
+     * @param callbackUrl - URL to redirect to after logout (defaults to home page)
+     */
+    logout(callbackUrl?: string): void {
+        if (typeof window === "undefined") {
+            console.error("logout() can only be called in browser environment")
+            return
+        }
+
+        // Clear tokens immediately
+        this.client.tokenClient.clearTokens()
+
+        const config = this.client.getConfig()
+        const callback = callbackUrl || window.location.origin
+
+        // Redirect to /accounts/logout/
+        const logoutUrl = `${config.baseUrl}/accounts/logout/?redirect_to=${encodeURIComponent(callback)}`
+
+        window.location.href = logoutUrl
     }
 
-    // TODO: Implement authentication methods
-    // - signInWithSSO
-    // - signInWithPassword ?
-    // - signOut
-    // - isUserAuthenticated
-    // - refreshSession
-    // - redirectToLogin
+    /**
+     * Check if user is authenticated
+     */
+    isUserAuthenticated(): boolean {
+        return this.client.tokenClient.isAuthenticated()
+    }
+
+    /**
+     * Get the current access token
+     */
+    getAccessToken(): string | null {
+        return this.client.tokenClient.getToken()
+    }
+
+    /**
+     * Get the current refresh token
+     */
+    getRefreshToken(): string | null {
+        return this.client.tokenClient.getRefreshToken()
+    }
+
+    /**
+     * Check if the access token is expired
+     */
+    isTokenExpired(): boolean {
+        return this.client.tokenClient.isTokenExpired()
+    }
+
+    /**
+     * Refresh the access token using the refresh token
+     * ⚠️ IMPORTANT: Taruvi uses refresh token rotation
+     * You will receive BOTH a new access token AND a new refresh token
+     *
+     * @returns Promise with new tokens or null if refresh failed
+     */
+    async refreshAccessToken(): Promise<{ access: string; refresh: string; expires_in: number } | null> {
+        const refreshToken = this.client.tokenClient.getRefreshToken()
+
+        if (!refreshToken) {
+            console.error("No refresh token available")
+            return null
+        }
+
+        try {
+            const config = this.client.getConfig()
+            const response = await fetch(`${config.baseUrl}/api/cloud/auth/jwt/token/refresh/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh: refreshToken })
+            })
+
+            if (!response.ok) {
+                throw new Error(`Token refresh failed: ${response.statusText}`)
+            }
+
+            const data = await response.json()
+
+            // Update tokens in storage (both access and refresh due to rotation)
+            this.client.tokenClient.updateAccessToken(data.access, data.expires_in || 172800)
+
+            if (data.refresh) {
+                this.client.tokenClient.updateRefreshToken(data.refresh)
+            }
+
+            return {
+                access: data.access,
+                refresh: data.refresh || refreshToken,
+                expires_in: data.expires_in || 172800
+            }
+        } catch (error) {
+            console.error("Failed to refresh access token:", error)
+
+            // Clear tokens and redirect to login
+            this.client.tokenClient.clearTokens()
+
+            if (typeof window !== "undefined") {
+                this.login()
+            }
+
+            return null
+        }
+    }
+
+    /**
+     * Get current user info from access token (JWT decode)
+     * Note: This only decodes the token, doesn't validate signature
+     */
+    getCurrentUser(): any | null {
+        const accessToken = this.getAccessToken()
+
+        if (!accessToken) {
+            return null
+        }
+
+        try {
+            // Decode JWT (middle part is payload)
+            const parts = accessToken.split(".")
+            if (parts.length !== 3 || !parts[1]) {
+                throw new Error("Invalid JWT format")
+            }
+            const payload = JSON.parse(atob(parts[1]))
+            return payload
+        } catch (error) {
+            console.error("Failed to decode access token:", error)
+            return null
+        }
+    }
+
+    /**
+     * Legacy method: Redirect to login using desk URL
+     * @deprecated Use login() instead
+     */
+    async redirectToLogin(): Promise<void> {
+        const config = this.client.getConfig()
+        const currentUrl = typeof window !== "undefined" ? window.location.href : ""
+
+        const deskUrl = config.deskUrl || config.baseUrl
+        if (typeof window !== "undefined") {
+            window.location.href = `${deskUrl}?redirect=${encodeURIComponent(currentUrl)}`
+        }
+    }
 }

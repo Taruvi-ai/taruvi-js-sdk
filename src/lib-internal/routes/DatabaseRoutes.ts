@@ -3,3 +3,7 @@ export const DatabaseRoutes = {
     dataTables: (tableName: string): string => `/datatables/${tableName}/data`,
     recordId: (recordId: string): string => `/${recordId}`
 }
+
+type AllRouteKeys = keyof typeof DatabaseRoutes
+export type DatabaseRouteKey = Exclude<AllRouteKeys, 'baseUrl'>
+export type DatabaseUrlParams = Partial<Record<DatabaseRouteKey, string>>

@@ -5,3 +5,11 @@ export const StorageRoutes = {
     delete: () => "/batch-delete"
     // bucket: (appslug: string, bucketslug: string) => `${StorageRoutesClone.baseUrl(appslug)}/${bucketslug}`
 }
+
+export type StoragePathKey = 'path'
+export type StorageFlagKey = 'upload' | 'delete'
+export type StorageRouteKey = StoragePathKey | StorageFlagKey
+
+export type BucketUrlParams = Partial<
+    Record<StorageRouteKey, string | true>
+>

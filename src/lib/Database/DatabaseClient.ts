@@ -1,5 +1,5 @@
 import type { Client } from "../../client.js";
-import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
+import { DatabaseRoutes, type DatabaseRouteKey } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters } from "../../types.js";
 import type { UrlParams } from "./types.js";
@@ -14,14 +14,14 @@ export class Database {
     private body: object | undefined
     private filters: DatabaseFilters | undefined
 
-    constructor(client: Client, urlParams: UrlParams, operation?: HttpMethod | undefined, body?: object | undefined, filters?: DatabaseFilters) {
+    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, filters?: DatabaseFilters) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
         this.body = body
         this.config = this.client.getConfig()
         this.filters = filters
-    }
+    }       
 
     from(dataTables: string): Database {
         return new Database(this.client, { ...this.urlParams, dataTables }, undefined, undefined)
@@ -35,21 +35,33 @@ export class Database {
         return new Database(this.client, this.urlParams = { ...this.urlParams, recordId }, HttpMethod.GET)
     }
 
-    update(body: any): Database {
+    create(body: any): Database {
         return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.POST, body)
+    }
+
+    update(body: any): Database {
+        return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.PUT, body)
     }
 
     delete(recordId?: any): Database {
         return new Database(this.client, this.urlParams = { ...this.urlParams, recordId }, HttpMethod.DELETE)
     }
-
     private buildRoute(): string {
-        return DatabaseRoutes.baseUrl(this.config.appSlug) + Object.keys(this.urlParams).reduce((acc, key) => {
-            if (this.urlParams[key] && DatabaseRoutes[key]) {
-                acc += DatabaseRoutes[key](this.urlParams[key])
-            }
-            return acc
-        }, "") + "/" + buildQueryString(this.filters)
+        return (
+            DatabaseRoutes.baseUrl(this.config.appSlug) +
+            (Object.keys(this.urlParams) as DatabaseRouteKey[]).reduce((acc, key) => {
+                const value = this.urlParams[key]
+                const routeBuilder = DatabaseRoutes[key]
+
+                if (value && routeBuilder) {
+                    acc += routeBuilder(value)
+                }
+
+                return acc
+            }, "") +
+            "/" +
+            buildQueryString(this.filters)
+        )
     }
 
     async execute() {

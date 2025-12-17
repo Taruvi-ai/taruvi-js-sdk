@@ -3,7 +3,8 @@ export interface BucketUrlParams {
     appSlug: string
     bucket: string
     path?: string | undefined
-    upload: string,
+    upload?: string
+    delete?: string
 }
 
 export interface BucketFileUpload {

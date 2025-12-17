@@ -1,6 +1,6 @@
 import type { Client } from "../../client.js";
 import type { BucketFileUpload, BucketUrlParams } from "./types.js";
-import { StorageRoutes } from "../../lib-internal/routes/StorageRoutes.js";
+import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
 import type { TaruviConfig, StorageFilters } from "../../types.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import { buildQueryString } from "../../utils/utils.js";
@@ -15,7 +15,7 @@ export class Storage {
     private filters: StorageFilters | undefined
 
 
-    constructor(client: Client, urlParams: BucketUrlParams, operation?: HttpMethod | undefined, body?: object, filters?: StorageFilters) {
+    constructor(client: Client, urlParams: BucketUrlParams = {} as BucketUrlParams, operation?: HttpMethod | undefined, body?: object, filters?: StorageFilters) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
@@ -33,8 +33,10 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams }, undefined, undefined, filters)
     }
 
-    delete(path: string): Storage {
-        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.DELETE)
+    delete(paths: string[]): Storage {
+        return new Storage(this.client, {
+            ...this.urlParams, delete: "delete"
+        } as any, HttpMethod.POST, { paths })
     }
 
     update(path: string, body: object): Storage {
@@ -55,17 +57,32 @@ export class Storage {
         }, HttpMethod.POST, formData)
     }
 
-
     private buildRoute(): string {
-        return StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket) + Object.keys(this.urlParams).reduce((acc, key) => {
-            if (this.urlParams[key] && StorageRoutes[key]) {
-                acc += StorageRoutes[key](this.urlParams[key])
-            }
-            return acc
-        }, "") + "/" + buildQueryString(this.filters as Record<string, unknown>)
+        return (
+            StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket!) +
+            (Object.keys(this.urlParams) as StorageRouteKey[]).reduce((acc, key) => {
+                const value = this.urlParams[key as keyof BucketUrlParams]
+
+                if (!value) return acc
+
+                if (key === 'path' && typeof value === 'string') {
+                    acc += StorageRoutes.path(value)
+                }
+
+                if ((key === 'upload' || key === 'delete') && typeof StorageRoutes[key] === 'function') {
+                    acc += (StorageRoutes[key] as () => string)()
+                }
+
+                return acc
+            }, '') +
+            '/' +
+            buildQueryString(this.filters as Record<string, unknown>)
+        )
     }
 
-    async execute(): Promise<T> {
+
+
+    async execute(): Promise<any> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 
