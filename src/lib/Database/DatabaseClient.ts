@@ -40,7 +40,7 @@ export class Database {
     }
 
     update(body: any): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.PUT, body)
+        return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.PATCH, body)
     }
 
     delete(recordId?: any): Database {
@@ -67,7 +67,6 @@ export class Database {
     async execute() {
         // Build the API URL
         const url = this.buildRoute()
-        // const fullUrl = `sites/eox_site/${url}` //remove for productions because baseurl is in the appscope, no need for site
 
         const operation = this.operation || HttpMethod.GET
 
@@ -75,11 +74,11 @@ export class Database {
             case HttpMethod.POST:
                 return await this.client.httpClient.post(url, this.body)
 
-            case HttpMethod.PUT:
+            case HttpMethod.PATCH:
                 if (!this.urlParams.recordId) {
-                    throw new Error('PUT operation requires a record ID. Use .get(recordId) before .update()')
+                    throw new Error('PATCH operation requires a record ID.')
                 }
-                return await this.client.httpClient.put(url, this.body)
+                return await this.client.httpClient.patch(url, this.body)
 
             case HttpMethod.DELETE:
                 return await this.client.httpClient.delete(url)

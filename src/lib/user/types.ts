@@ -67,3 +67,13 @@ export interface UserList {
     page: Number
     page_size: Number
 }
+
+export interface UserApp {
+    name: string
+    slug: string
+    icon: string
+    url: string
+    display_name: string
+}
+
+export type UserAppsResponse = UserApp[]

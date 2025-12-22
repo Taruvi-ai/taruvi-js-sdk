@@ -1,5 +1,5 @@
 import type { Client } from "../../client.js";
-import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserList, UserUpdateRequest } from "./types.js";
+import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserList, UserUpdateRequest, UserAppsResponse } from "./types.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -24,6 +24,10 @@ export class User {
     async list(filters: UserList) {
         const queryString = buildQueryString(filters as unknown as Record<string, unknown>)
         return await this.client.httpClient.get(UserRoutes.listUser(queryString))
+    }
+
+    async getUserApps(username: string): Promise<UserAppsResponse> {
+        return await this.client.httpClient.get<UserAppsResponse>(UserRoutes.getUserApps(username))
     }
 
     // - createUser
