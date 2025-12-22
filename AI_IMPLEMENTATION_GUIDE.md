@@ -12,7 +12,10 @@ npm install @taruvi-io/sdk
 
 Recent updates to the SDK:
 
-- **Auth Service**: New Web UI Flow with `login()`, `signup()`, `logout()` methods that redirect to backend pages. Token refresh with rotation support, `getCurrentUser()` for JWT decoding.
+- **Policy Service**: New service for checking resource-level permissions with `checkResource()` method. Supports batch resource checking with principals, roles, and attributes.
+- **App Service**: New service to retrieve app roles with `roles()` method.
+- **User Types**: Added `UserList`, `UserApp`, and `UserAppsResponse` types for user listing and app associations.
+- **Auth Service**: Web UI Flow with `login()`, `signup()`, `logout()` methods that redirect to backend pages. Token refresh with rotation support, `getCurrentUser()` for JWT decoding.
 - **Database Service**: Added `create()` method for creating records. Comprehensive filter support with Django-style operators (`__gte`, `__lte`, `__icontains`, etc.).
 - **Storage Service**: Added `download()` method. Enhanced filter support with size, date, MIME type, visibility filters. `delete()` now accepts array of paths for bulk deletion.
 - **Client**: Automatic token extraction from URL hash after OAuth callback - no manual token handling needed.
@@ -749,6 +752,151 @@ await secrets.update("MY_SECRET", {
 
 ---
 
+## Policy Service (Resource Permissions)
+
+### Check Resource Permissions
+
+```typescript
+import { Policy } from '@taruvi-io/sdk'
+
+const policy = new Policy(taruviClient)
+
+// Check permissions for multiple resources
+const result = await policy.checkResource([
+  {
+    tableName: "accounts",
+    recordId: "record-123",
+    attributes: { owner_id: "user-456" },
+    actions: ["read", "update"]
+  },
+  {
+    tableName: "documents",
+    recordId: "doc-789",
+    attributes: {},
+    actions: ["delete"]
+  }
+])
+```
+
+### Check with Principal Override
+
+```typescript
+const policy = new Policy(taruviClient)
+
+// Check permissions for a specific principal
+const result = await policy.checkResource(
+  [
+    {
+      tableName: "accounts",
+      recordId: "record-123",
+      attributes: {},
+      actions: ["read"]
+    }
+  ],
+  {
+    id: "user-123",
+    roles: ["admin", "editor"],
+    attr: { department: "sales" }
+  }
+)
+```
+
+### Complete Permission Check Example
+
+```typescript
+import { useState } from 'react'
+import { Policy } from '@taruvi-io/sdk'
+
+export default function ResourceGuard({ taruviClient, children, resource }) {
+  const [allowed, setAllowed] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkPermission = async () => {
+      try {
+        const policy = new Policy(taruviClient)
+        const result = await policy.checkResource([
+          {
+            tableName: resource.table,
+            recordId: resource.id,
+            attributes: resource.attributes || {},
+            actions: ["read"]
+          }
+        ])
+        setAllowed(result.allowed)
+      } catch (error) {
+        console.error("Permission check failed:", error)
+        setAllowed(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+    checkPermission()
+  }, [resource])
+
+  if (loading) return <div>Checking permissions...</div>
+  if (!allowed) return <div>Access denied</div>
+  return children
+}
+```
+
+---
+
+## App Service
+
+### Get App Roles
+
+```typescript
+import { App } from '@taruvi-io/sdk'
+
+const app = new App(taruviClient)
+const roles = await app.roles().execute()
+
+console.log(roles) // Array of role objects with id, name, permissions
+```
+
+### Complete Roles List Example
+
+```typescript
+import { useEffect, useState } from 'react'
+import { App } from '@taruvi-io/sdk'
+
+export default function RolesList({ taruviClient }) {
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const app = new App(taruviClient)
+        const response = await app.roles().execute()
+        setRoles(response.data || [])
+      } catch (error) {
+        console.error("Failed to fetch roles:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRoles()
+  }, [])
+
+  if (loading) return <div>Loading roles...</div>
+
+  return (
+    <ul>
+      {roles.map(role => (
+        <li key={role.id}>
+          <strong>{role.name}</strong>
+          <span>{role.permissions?.join(", ")}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+---
+
 ## Common Patterns
 
 ### Loading States
@@ -851,7 +999,11 @@ import type {
   StorageFilters,
   SettingsResponse,
   SecretRequest,
-  SecretResponse
+  SecretResponse,
+  Principal,
+  Resource,
+  Resources,
+  RoleResponse
 } from '@taruvi-io/sdk'
 ```
 
@@ -900,6 +1052,22 @@ const storageFilters: StorageFilters = {
   ordering: "-created_at",
   created_by_me: true
 }
+
+// Policy types for permission checking
+const principal: Principal = {
+  id: "user-123",
+  roles: ["admin", "editor"],
+  attr: { department: "engineering" }
+}
+
+const resources: Resources = [
+  {
+    tableName: "accounts",
+    recordId: "acc-456",
+    attributes: { owner_id: "user-123" },
+    actions: ["read", "update", "delete"]
+  }
+]
 ```
 
 ---
@@ -958,6 +1126,8 @@ The Storage service supports these specialized filters:
 | `Functions` | `import { Functions }` | Serverless functions |
 | `Settings` | `import { Settings }` | Site configuration |
 | `Secrets` | `import { Secrets }` | Sensitive data |
+| `Policy` | `import { Policy }` | Resource permissions |
+| `App` | `import { App }` | App roles & config |
 
 ---
 
@@ -1001,4 +1171,4 @@ const client = new Client({
 
 ---
 
-**Generated from production code examples • Last updated: 2025-12-17**
+**Generated from production code examples • Last updated: 2025-12-22**
