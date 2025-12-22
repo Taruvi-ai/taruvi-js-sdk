@@ -14,12 +14,9 @@
   ],
   "author": "Curran C Doddabele",
   "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^24.10.1",
-    "typescript": "^5.7.3"
-  },
   "peerDependencies": {
-    "@types/node": "^18.0.0 || ^20.0.0 || ^22.0.0",
-    "axios": "^1.0.0"
+    "@types/node": ">=18 <21",
+    "typescript": ">=5.7 <6",
+    "axios": ">=1 <2"
   }
 }
