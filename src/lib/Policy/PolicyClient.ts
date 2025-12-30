@@ -16,7 +16,7 @@ export class Policy {
         const body = JSON.stringify({
             resources: resources.map(r => ({
                 resource: {
-                    kind: `${this.config.appSlug}:${r.tableName}`,
+                    kind: `${r.entityType}:${r.tableName}`,
                     id: r.recordId,
                     attr: r.attributes || {}
                 },

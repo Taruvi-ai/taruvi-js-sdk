@@ -11,6 +11,7 @@ export type Resource = {
 };
 
 export type Resources = {
+    entityType: string
     tableName: string
     recordId: string
     attributes: Record<string, unknown>
