@@ -1,7 +1,7 @@
 import type { Client } from "../../client.js"
 import { PolicyRoutes } from "../../lib-internal/routes/PolicyRoutes.js"
 import type { TaruviConfig } from "../../types.js"
-import type { Principal, Resource, Resources } from "./types.js"
+import type { Resources } from "./types.js"
 
 export class Policy {
     private client: Client
@@ -11,16 +11,16 @@ export class Policy {
         this.config = this.client.getConfig()
     }
 
-    async checkResource(resources: Resources, principal?: Principal) {
+    async checkResource(resources: Resources) {
         const url = PolicyRoutes.baseUrl(this.config.appSlug) + PolicyRoutes.checkResource
         const body = JSON.stringify({
-            principal,
             resources: resources.map(r => ({
                 resource: {
-                    kind: `${this.config.appSlug}:${r.tableName}`,
+                    kind: `${r.entityType}:${r.tableName}`,
                     id: r.recordId,
                     attr: r.attributes || {}
-                }
+                },
+                actions: r.actions
             }))
         })
 
