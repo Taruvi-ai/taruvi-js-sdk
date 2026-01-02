@@ -12,11 +12,10 @@ export class Analytics {
         this.config = this.client.getConfig()
     }
 
-    async execute<T = unknown>(options: AnalyticsRequest): Promise<AnalyticsResponse<T>> {
-        const url = `${AnalyticsRoutes.baseUrl(this.config.appSlug)}${AnalyticsRoutes.execute}`
+    async execute<T = unknown>(querySlug: string, options: AnalyticsRequest = {}): Promise<AnalyticsResponse<T>> {
+        const url = AnalyticsRoutes.baseUrl(this.config.appSlug, querySlug)
 
         const body = {
-            name: options.name,
             params: options.params || {}
         }
 

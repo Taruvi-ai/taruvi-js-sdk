@@ -708,8 +708,7 @@ import { Analytics } from '@taruvi-io/sdk'
 
 const analytics = new Analytics(taruviClient)
 
-const result = await analytics.execute({
-  name: "monthly_sales_report",
+const result = await analytics.execute("monthly-sales-report", {
   params: {
     start_date: "2024-01-01",
     end_date: "2024-12-31"
@@ -730,8 +729,7 @@ interface SalesData {
 
 const analytics = new Analytics(taruviClient)
 
-const result = await analytics.execute<SalesData>({
-  name: "sales_summary",
+const result = await analytics.execute<SalesData>("sales-summary", {
   params: { period: "monthly" }
 })
 
@@ -753,8 +751,7 @@ export default function AnalyticsDashboard({ taruviClient }) {
     const fetchMetrics = async () => {
       try {
         const analytics = new Analytics(taruviClient)
-        const result = await analytics.execute({
-          name: "dashboard_metrics",
+        const result = await analytics.execute("dashboard-metrics", {
           params: {
             date_range: "last_30_days"
           }

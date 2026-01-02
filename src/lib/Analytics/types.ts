@@ -1,5 +1,4 @@
 export interface AnalyticsRequest {
-    name: string
     params?: Record<string, unknown>
 }
 
