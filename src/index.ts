@@ -11,6 +11,7 @@ export { Functions } from "./lib/Function/FunctionsClient.js"
 export { Secrets } from "./lib/Secrets/SecretsClient.js"
 export { Policy } from "./lib/Policy/PolicyClient.js"
 export { App } from "./lib/App/AppClient.js"
+export { Analytics } from "./lib/Analytics/AnalyticsClient.js"
 
 // Export types
 export type { TaruviConfig, StorageFilters, DatabaseFilters } from "./types.js"
@@ -23,3 +24,4 @@ export type { DatabaseRequest, DatabaseResponse } from "./lib/Database/types.js"
 export type { StorageRequest, StorageUpdateRequest, StorageResponse } from "./lib/Storage/types.js"
 export type { SettingsResponse } from "./lib/Settings/types.js"
 export type { SecretRequest, SecretResponse } from "./lib/Secrets/types.js"
+export type { AnalyticsRequest, AnalyticsResponse } from "./lib/Analytics/types.js"

@@ -29,9 +29,10 @@ export class Auth {
 
         const config = this.client.getConfig()
         const callback = callbackUrl || window.location.origin + window.location.pathname
+        const deskUrl = config.deskUrl || config.baseUrl
 
         // Redirect to /accounts/login/ with redirect_to parameter
-        const loginUrl = `${config.baseUrl}/accounts/login/?redirect_to=${encodeURIComponent(callback)}`
+        const loginUrl = `${deskUrl}/accounts/login/?redirect_to=${encodeURIComponent(callback)}`
 
         // Optional: Store state before redirecting
         if (typeof sessionStorage !== "undefined") {
@@ -73,9 +74,10 @@ export class Auth {
 
     /**
      * Logout user and redirect to logout page
-     * @param callbackUrl - URL to redirect to after logout (defaults to home page)
+     * Fetches frontendUrl from site settings for redirect
+     * @param callbackUrl - URL to redirect to after logout (overrides frontendUrl from settings)
      */
-    logout(callbackUrl?: string): void {
+    async logout(callbackUrl?: string): Promise<void> {
         if (typeof window === "undefined") {
             console.error("logout() can only be called in browser environment")
             return
@@ -85,10 +87,24 @@ export class Auth {
         this.client.tokenClient.clearTokens()
 
         const config = this.client.getConfig()
-        const callback = callbackUrl || window.location.origin
+        const deskUrl = config.deskUrl || config.baseUrl
+        let callback: string = callbackUrl || ""
+
+        // If no callback provided, fetch frontendUrl from site settings
+        if (!callback) {
+            try {
+                const settings = await this.client.httpClient.get<{ frontend_url?: string }>(
+                    `api/sites/${config.appSlug}/metadata`
+                )
+                callback = settings.frontend_url || window.location.origin
+            } catch (error) {
+                console.error("Failed to fetch site settings, using origin:", error)
+                callback = window.location.origin
+            }
+        }
 
         // Redirect to /accounts/logout/
-        const logoutUrl = `${config.baseUrl}/accounts/logout/?redirect_to=${encodeURIComponent(callback)}`
+        const logoutUrl = `${deskUrl}/accounts/logout/?redirect_to=${encodeURIComponent(callback)}`
 
         window.location.href = logoutUrl
     }
@@ -198,20 +214,6 @@ export class Auth {
         } catch (error) {
             console.error("Failed to decode access token:", error)
             return null
-        }
-    }
-
-    /**
-     * Legacy method: Redirect to login using desk URL
-     * @deprecated Use login() instead
-     */
-    async redirectToLogin(): Promise<void> {
-        const config = this.client.getConfig()
-        const currentUrl = typeof window !== "undefined" ? window.location.href : ""
-
-        const deskUrl = config.deskUrl || config.baseUrl
-        if (typeof window !== "undefined") {
-            window.location.href = `${deskUrl}?redirect=${encodeURIComponent(currentUrl)}`
         }
     }
 }

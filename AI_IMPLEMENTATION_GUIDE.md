@@ -12,7 +12,8 @@ npm install @taruvi-io/sdk
 
 Recent updates to the SDK:
 
-- **Policy Service**: New service for checking resource-level permissions with `checkResource()` method. Supports batch resource checking with principals, roles, and attributes.
+- **Analytics Service**: New service for executing analytics queries with `execute()` method. Pass query name and parameters to run predefined analytics.
+- **Policy Service**: New service for checking resource-level permissions with `checkResource()` method. Supports batch resource checking with entity types, tables, and attributes.
 - **App Service**: New service to retrieve app roles with `roles()` method.
 - **User Types**: Added `UserList`, `UserApp`, and `UserAppsResponse` types for user listing and app associations.
 - **Auth Service**: Web UI Flow with `login()`, `signup()`, `logout()` methods that redirect to backend pages. Token refresh with rotation support, `getCurrentUser()` for JWT decoding.
@@ -698,6 +699,89 @@ export default function FunctionExecutor({ taruviClient }) {
 
 ---
 
+## Analytics Service
+
+### Execute Analytics Query
+
+```typescript
+import { Analytics } from '@taruvi-io/sdk'
+
+const analytics = new Analytics(taruviClient)
+
+const result = await analytics.execute({
+  name: "monthly_sales_report",
+  params: {
+    start_date: "2024-01-01",
+    end_date: "2024-12-31"
+  }
+})
+
+console.log(result.data) // Analytics query result
+```
+
+### Execute with Typed Response
+
+```typescript
+interface SalesData {
+  total_sales: number
+  orders_count: number
+  average_order_value: number
+}
+
+const analytics = new Analytics(taruviClient)
+
+const result = await analytics.execute<SalesData>({
+  name: "sales_summary",
+  params: { period: "monthly" }
+})
+
+console.log(result.data?.total_sales)
+console.log(result.data?.orders_count)
+```
+
+### Complete Analytics Dashboard Example
+
+```typescript
+import { useEffect, useState } from 'react'
+import { Analytics } from '@taruvi-io/sdk'
+
+export default function AnalyticsDashboard({ taruviClient }) {
+  const [metrics, setMetrics] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const analytics = new Analytics(taruviClient)
+        const result = await analytics.execute({
+          name: "dashboard_metrics",
+          params: {
+            date_range: "last_30_days"
+          }
+        })
+        setMetrics(result.data)
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMetrics()
+  }, [])
+
+  if (loading) return <div>Loading analytics...</div>
+
+  return (
+    <div>
+      <h2>Dashboard Metrics</h2>
+      <pre>{JSON.stringify(metrics, null, 2)}</pre>
+    </div>
+  )
+}
+```
+
+---
+
 ## Settings Service
 
 ### Get Site Settings
@@ -764,12 +848,14 @@ const policy = new Policy(taruviClient)
 // Check permissions for multiple resources
 const result = await policy.checkResource([
   {
+    entityType: "crm",
     tableName: "accounts",
     recordId: "record-123",
     attributes: { owner_id: "user-456" },
     actions: ["read", "update"]
   },
   {
+    entityType: "docs",
     tableName: "documents",
     recordId: "doc-789",
     attributes: {},
@@ -778,33 +864,10 @@ const result = await policy.checkResource([
 ])
 ```
 
-### Check with Principal Override
-
-```typescript
-const policy = new Policy(taruviClient)
-
-// Check permissions for a specific principal
-const result = await policy.checkResource(
-  [
-    {
-      tableName: "accounts",
-      recordId: "record-123",
-      attributes: {},
-      actions: ["read"]
-    }
-  ],
-  {
-    id: "user-123",
-    roles: ["admin", "editor"],
-    attr: { department: "sales" }
-  }
-)
-```
-
 ### Complete Permission Check Example
 
 ```typescript
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Policy } from '@taruvi-io/sdk'
 
 export default function ResourceGuard({ taruviClient, children, resource }) {
@@ -817,6 +880,7 @@ export default function ResourceGuard({ taruviClient, children, resource }) {
         const policy = new Policy(taruviClient)
         const result = await policy.checkResource([
           {
+            entityType: resource.entityType,
             tableName: resource.table,
             recordId: resource.id,
             attributes: resource.attributes || {},
@@ -1003,7 +1067,9 @@ import type {
   Principal,
   Resource,
   Resources,
-  RoleResponse
+  RoleResponse,
+  AnalyticsRequest,
+  AnalyticsResponse
 } from '@taruvi-io/sdk'
 ```
 
@@ -1062,6 +1128,7 @@ const principal: Principal = {
 
 const resources: Resources = [
   {
+    entityType: "crm",
     tableName: "accounts",
     recordId: "acc-456",
     attributes: { owner_id: "user-123" },
@@ -1128,6 +1195,7 @@ The Storage service supports these specialized filters:
 | `Secrets` | `import { Secrets }` | Sensitive data |
 | `Policy` | `import { Policy }` | Resource permissions |
 | `App` | `import { App }` | App roles & config |
+| `Analytics` | `import { Analytics }` | Analytics queries |
 
 ---
 
@@ -1171,4 +1239,4 @@ const client = new Client({
 
 ---
 
-**Generated from production code examples • Last updated: 2025-12-22**
+**Generated from production code examples • Last updated: 2026-01-02**
