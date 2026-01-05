@@ -21,12 +21,12 @@ export const getRuntimeEnvironment = (): string => {
     return 'Server'
 }
 
-export function buildQueryString(filters: Record<string, unknown> | undefined): string {
-    if (!filters || Object.keys(filters).length === 0) {
+export function buildQueryString(queryParams: Record<string, unknown> | undefined): string {
+    if (!queryParams || Object.keys(queryParams).length === 0) {
         return ''
     }
     const params = new URLSearchParams()
-    Object.entries(filters).forEach(([key, value]) => {
+    Object.entries(queryParams).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
             params.append(key, String(value))
         }

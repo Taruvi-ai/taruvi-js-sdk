@@ -12,15 +12,15 @@ export class Database {
     private config: TaruviConfig
     private operation: HttpMethod | undefined
     private body: object | undefined
-    private filters: DatabaseFilters | undefined
+    private queryParams: DatabaseFilters | undefined
 
-    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, filters?: DatabaseFilters) {
+    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, queryParams?: DatabaseFilters) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
         this.body = body
         this.config = this.client.getConfig()
-        this.filters = filters
+        this.queryParams = queryParams
     }       
 
     from(dataTables: string): Database {
@@ -28,7 +28,11 @@ export class Database {
     }
 
     filter(filters: DatabaseFilters): Database {
-        return new Database(this.client, { ...this.urlParams }, undefined, undefined, filters)
+        return new Database(this.client, { ...this.urlParams }, undefined, undefined, {...this.queryParams, ...filters})
+    }
+
+    populate(populate: string[]): Database {
+        return new Database(this.client, { ...this.urlParams, }, undefined, undefined, {...this.queryParams, populate: populate.join(',')})
     }
 
     get(recordId: string): Database {
@@ -60,7 +64,7 @@ export class Database {
                 return acc
             }, "") +
             "/" +
-            buildQueryString(this.filters)
+            buildQueryString(this.queryParams)
         )
     }
 
