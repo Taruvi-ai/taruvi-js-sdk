@@ -1,703 +1,1328 @@
-# Taruvi SDK
+# Taruvi SDK - AI Implementation Guide
 
-> A TypeScript SDK for the Taruvi Platform - Backend-as-a-Service for modern applications
-
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)]() [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)]() [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
-
-## Overview
-
-Taruvi SDK is a type-safe client library that enables JavaScript/TypeScript applications to interact with the Taruvi Backend-as-a-Service platform. It provides a clean, intuitive API for authentication, user management, data storage, and serverless functions.
-
-### Key Features
-
-- **Modern Architecture** - Dependency injection pattern, no singletons
-- **Type-Safe** - Full TypeScript support with strict typing
-- **Lazy Loading** - Only bundle the services you use
-- **Tree-Shakeable** - Optimized for minimal bundle size
-- **Testable** - Easy to mock and test with dependency injection
-- **Flexible** - Support for multiple instances and configurations
-- **Multi-Tenant** - Manage multiple apps under a single site
-
----
+> Quick reference for implementing Taruvi SDK features with copy-paste examples from production code
 
 ## Installation
 
 ```bash
 npm install @taruvi/sdk
-# or
-yarn add @taruvi/sdk
-# or
-pnpm add @taruvi/sdk
 ```
 
----
+## What's New
 
-## Quick Start
+Recent updates to the SDK:
 
-```typescript
-import { Client, Auth, User } from '@taruvi/sdk'
+- **Analytics Service**: New service for executing analytics queries with `execute()` method. Pass query name and parameters to run predefined analytics.
+- **Policy Service**: New service for checking resource-level permissions with `checkResource()` method. Supports batch resource checking with entity types, tables, and attributes.
+- **App Service**: New service to retrieve app roles with `roles()` method.
+- **User Types**: Added `UserCreateRequest`, `UserResponse`, and `UserDataResponse` types for user management.
+- **Auth Service**: Web UI Flow with `login()`, `signup()`, `logout()` methods that redirect to backend pages. Token refresh with rotation support, `getCurrentUser()` for JWT decoding.
+- **Database Service**: Added `create()` method for creating records. Added `populate()` method for eager loading related records. Comprehensive filter support with Django-style operators (`__gte`, `__lte`, `__icontains`, etc.).
+- **Storage Service**: Added `download()` method. Enhanced filter support with size, date, MIME type, visibility filters. `delete()` now accepts array of paths for bulk deletion.
+- **Client**: Automatic token extraction from URL hash after OAuth callback - no manual token handling needed.
+- **Types**: Comprehensive `StorageFilters` and `DatabaseFilters` interfaces with full operator support.
 
-// 1. Create the main client
-const client = new Client({
-  apiKey: 'your-site-api-key',
-  appSlug: 'my-app',
-  baseUrl: 'https://test-api.taruvi.cloud'
-})
+## Core Setup
 
-// 2. Initialize only the services you need
-const auth = new Auth(client)
-const user = new User(client)
-
-// 3. Use the services
-await auth.authenticateUser()
-const userData = await user.getUserData()
-console.log(userData.username)
-```
-
----
-
-## Core Concepts
-
-### Dependency Injection Pattern
-
-Taruvi SDK uses dependency injection instead of singletons, allowing multiple client instances and better testability.
+### 1. Initialize Client
 
 ```typescript
-// Multiple environments
-const prodClient = new Client({ apiKey: '...', appSlug: 'prod', baseUrl: '...' })
-const devClient = new Client({ apiKey: '...', appSlug: 'dev', baseUrl: '...' })
+import { Client } from '@taruvi/sdk'
 
-// Services use the client they're given
-const prodUser = new User(prodClient)
-const devUser = new User(devClient)
-```
-
-### Lazy Service Instantiation
-
-Services are manually instantiated, allowing tree-shaking to eliminate unused code.
-
-```typescript
-// Only import what you need
-import { Client, User } from '@taruvi/sdk'  // ✅ Auth not bundled
-
-const client = new Client({ /* config */ })
-const user = new User(client)  // Only User service loaded
-```
-
-### Multi-Tenancy Support
-
-Single site can manage multiple apps with isolated data using `appSlug`.
-
-```typescript
-const customerApp = new Client({
-  apiKey: 'site_abc123',      // Same site
-  appSlug: 'customer-portal', // Customer data
-  baseUrl: 'https://test-api.taruvi.cloud'
-})
-
-const adminApp = new Client({
-  apiKey: 'site_abc123',       // Same site
-  appSlug: 'admin-dashboard',  // Admin data (isolated)
-  baseUrl: 'https://test-api.taruvi.cloud'
+const taruviClient = new Client({
+  apiKey: "your-site-api-key",
+  appSlug: "your-app-slug", 
+  baseUrl: "https://taruvi-site.taruvi.cloud"
 })
 ```
 
----
-
-## Services
-
-### Auth Service
-
-User authentication and session management.
-
-**Status**: 🚧 60% Complete
+### 2. Pass to Components (React)
 
 ```typescript
-import { Client, Auth } from '@taruvi/sdk'
+// App.tsx
+<Route path="/page" element={<MyPage taruviClient={taruviClient} />} />
 
-const client = new Client({ /* config */ })
-const auth = new Auth(client)
+// MyPage.tsx
+interface MyPageProps {
+  taruviClient: Client;
+}
 
-// Authenticate user
-await auth.authenticateUser()
-
-// Check authentication status
-const isAuth = await auth.isUserAuthenticated()  // true/false
-```
-
-#### Available Methods
-- ✅ `authenticateUser()` - Login with email/password
-- ✅ `isUserAuthenticated()` - Check if user has valid session
-- 📋 `signInWithSSO()` - SSO authentication (planned)
-- 📋 `refreshSession()` - Refresh expired token (planned)
-- 📋 `signOut()` - End user session (planned)
-
----
-
-### User Service
-
-User profile and management operations.
-
-**Status**: ✅ 80% Complete (CRUD functional)
-
-```typescript
-import { Client, User } from '@taruvi/sdk'
-
-const client = new Client({ /* config */ })
-const user = new User(client)
-
-// Get current user
-const userData = await user.getUserData()
-
-// Create new user
-const newUser = await user.createUser({
-  username: 'john_doe',
-  email: 'john@example.com',
-  password: 'secure123'
-})
-
-// Update user
-await user.updateUser('john_doe', {
-  email: 'newemail@example.com'
-})
-
-// Delete user
-await user.deleteUser('john_doe')
-```
-
-#### Available Methods
-- ✅ `getUserData()` - Fetch current user details
-- ✅ `createUser(data)` - Create new user account
-- ✅ `updateUser(username, data)` - Update user information
-- ✅ `deleteUser(username)` - Delete user account
-
----
-
-### Storage Service
-
-Query builder for app-specific data tables.
-
-**Status**: 🚧 70% Complete (Query builder working)
-
-```typescript
-import { Client, Storage } from '@taruvi/sdk'
-
-const client = new Client({ /* config */ })
-const storage = new Storage(client, {})
-
-// Get all records from a table
-const allPosts = await storage
-  .from('posts')
-  .execute()
-
-// Get specific record
-const post = await storage
-  .from('posts')
-  .get('post_123')
-  .execute()
-```
-
-#### Available Methods
-- ✅ `from(tableName)` - Select table (chainable)
-- ✅ `get(recordId)` - Select specific record (chainable)
-- ✅ `execute()` - Execute the built query
-- 📋 `upload()` - File upload (planned)
-- 📋 `download()` - File download (planned)
-- 📋 `delete()` - Delete files (planned)
-
----
-
-### Settings Service
-
-Site configuration and settings.
-
-**Status**: ✅ 70% Complete
-
-```typescript
-import { Client, Settings } from '@taruvi/sdk'
-
-const client = new Client({ /* config */ })
-const settings = new Settings(client)
-
-// Fetch site configuration
-const siteConfig = await settings.get()
-console.log(siteConfig.site_slug)
-```
-
----
-
-### Database Service (Planned)
-
-Query builder for database operations.
-
-**Status**: 📋 Not Implemented
-
-```typescript
-import { Client, Database } from '@taruvi/sdk'
-
-const client = new Client({ /* config */ })
-const database = new Database(client)
-
-// Planned API (not yet functional)
-const users = await database
-  .from('users')
-  .select('*')
-  .filter('age', 'gte', 18)
-  .execute()
-```
-
----
-
-### Functions Service (Planned)
-
-Serverless function invocation.
-
-**Status**: 📋 Not Implemented
-
-```typescript
-import { Client, Functions } from '@taruvi/sdk'
-
-const client = new Client({ /* config */ })
-const functions = new Functions(client)
-
-// Planned API (not yet functional)
-const result = await functions.invoke('my-function', { data: 'value' })
-```
-
----
-
-## Configuration
-
-### TaruviConfig Interface
-
-```typescript
-interface TaruviConfig {
-  apiKey: string      // Required: Site/organization identifier
-  appSlug: string     // Required: App identifier (multi-tenant)
-  baseUrl: string     // Required: API endpoint URL
-  token?: string      // Optional: Pre-existing session token
+export default function MyPage({ taruviClient }: MyPageProps) {
+  // Use SDK here
 }
 ```
 
-### Configuration Examples
+### 3. Automatic Token Handling
 
-#### Basic Setup
+The Client automatically extracts authentication tokens from URL hash after OAuth callback:
+
 ```typescript
-const client = new Client({
-  apiKey: 'your-site-key',
-  appSlug: 'my-app',
-  baseUrl: 'https://test-api.taruvi.cloud'
-})
-```
+// After login redirect, URL contains:
+// #session_token=xxx&access_token=yyy&refresh_token=zzz&expires_in=172800&token_type=Bearer
 
-#### With Existing Token
-```typescript
-const client = new Client({
-  apiKey: 'your-site-key',
-  appSlug: 'my-app',
-  baseUrl: 'https://test-api.taruvi.cloud',
-  token: 'existing-session-token'  // Skip login
-})
-```
+// Client automatically:
+// 1. Extracts tokens from URL hash
+// 2. Stores them in TokenClient
+// 3. Clears the hash from URL
 
-#### Multiple Environments
-```typescript
-const config = {
-  production: {
-    apiKey: process.env.PROD_API_KEY!,
-    appSlug: 'prod-app',
-    baseUrl: 'https://api.taruvi.cloud'
-  },
-  development: {
-    apiKey: process.env.DEV_API_KEY!,
-    appSlug: 'dev-app',
-    baseUrl: 'https://dev-api.taruvi.cloud'
-  }
-}
-
-const client = new Client(
-  process.env.NODE_ENV === 'production'
-    ? config.production
-    : config.development
-)
+const taruviClient = new Client({ apiKey, appSlug, baseUrl })
+// Tokens are now available automatically if present in URL hash
 ```
 
 ---
 
-## Framework Integration
+## Auth Service
 
-### React
-
-Create context and custom hooks for app-wide access.
+### Check Authentication
 
 ```typescript
-import { createContext, useContext, ReactNode } from 'react'
-import { Client, User, Auth } from '@taruvi/sdk'
+import { Auth } from '@taruvi/sdk'
 
-// Create context
-const TaruviContext = createContext<Client | null>(null)
+const auth = new Auth(taruviClient)
+const isAuthenticated = auth.isUserAuthenticated() // Returns boolean (synchronous)
+```
 
-// Provider component
-export function TaruviProvider({ children }: { children: ReactNode }) {
-  const client = new Client({
-    apiKey: process.env.REACT_APP_TARUVI_API_KEY!,
-    appSlug: process.env.REACT_APP_TARUVI_APP_SLUG!,
-    baseUrl: process.env.REACT_APP_TARUVI_BASE_URL!
-  })
+### Login Flow (Web UI Flow with Redirect)
 
-  return (
-    <TaruviContext.Provider value={client}>
-      {children}
-    </TaruviContext.Provider>
-  )
-}
+```typescript
+import { useEffect } from "react"
+import { Auth } from '@taruvi/sdk'
 
-// Custom hooks
-export function useTaruvi() {
-  const client = useContext(TaruviContext)
-  if (!client) throw new Error('useTaruvi must be used within TaruviProvider')
-  return client
-}
-
-export function useAuth() {
-  const client = useTaruvi()
-  return new Auth(client)
-}
-
-export function useUser() {
-  const client = useTaruvi()
-  return new User(client)
-}
-
-// Usage in component
-function UserProfile() {
-  const user = useUser()
-  const [data, setData] = useState(null)
+export default function Login({ taruviClient }) {
+  const auth = new Auth(taruviClient)
 
   useEffect(() => {
-    user.getUserData().then(setData)
+    const isAuthenticated = auth.isUserAuthenticated()
+
+    if (isAuthenticated) {
+      window.location.href = "/dashboard"
+    } else {
+      // Redirects to backend login page, then returns with tokens in URL hash
+      auth.login() // Optional: pass callback URL
+    }
   }, [])
 
-  return <div>Welcome, {data?.username}!</div>
+  return <div>Checking authentication...</div>
 }
 ```
 
-### Vue 3
-
-Use provide/inject with Composition API.
+### Signup Flow
 
 ```typescript
-import { provide, inject, InjectionKey } from 'vue'
-import { Client, Auth, User } from '@taruvi/sdk'
+import { Auth } from '@taruvi/sdk'
 
-// Create injection key
-const TaruviKey: InjectionKey<Client> = Symbol('taruvi')
+const auth = new Auth(taruviClient)
 
-// Setup in main app or parent component
-export function setupTaruvi() {
-  const client = new Client({
-    apiKey: import.meta.env.VITE_TARUVI_API_KEY,
-    appSlug: import.meta.env.VITE_TARUVI_APP_SLUG,
-    baseUrl: import.meta.env.VITE_TARUVI_BASE_URL
+// Redirect to signup page (Web UI Flow)
+auth.signup() // Optional: pass callback URL
+auth.signup("/dashboard") // Redirect to dashboard after signup
+```
+
+### Logout
+
+```typescript
+import { Auth } from '@taruvi/sdk'
+
+const auth = new Auth(taruviClient)
+
+// Clear tokens and redirect to logout page
+await auth.logout() // Optional: pass callback URL
+await auth.logout("/") // Redirect to home after logout
+```
+
+### Get Current User
+
+```typescript
+import { Auth } from '@taruvi/sdk'
+
+const auth = new Auth(taruviClient)
+
+// Get user info from decoded JWT access token
+const user = auth.getCurrentUser()
+console.log(user?.user_id)
+console.log(user?.username)
+console.log(user?.email)
+```
+
+### Token Management
+
+```typescript
+import { Auth } from '@taruvi/sdk'
+
+const auth = new Auth(taruviClient)
+
+// Get tokens
+const accessToken = auth.getAccessToken()
+const refreshToken = auth.getRefreshToken()
+
+// Check if token is expired
+const isExpired = auth.isTokenExpired()
+
+// Refresh access token (returns new access AND refresh tokens due to rotation)
+const newTokens = await auth.refreshAccessToken()
+if (newTokens) {
+  console.log(newTokens.access)
+  console.log(newTokens.refresh)
+  console.log(newTokens.expires_in)
+}
+```
+
+---
+
+## User Service
+
+### Get Current User
+
+```typescript
+import { User } from '@taruvi/sdk'
+
+const user = new User(taruviClient)
+const userData = await user.getUserData()
+
+console.log(userData.data.username)
+console.log(userData.data.email)
+console.log(userData.data.full_name)
+```
+
+### Create User (Registration)
+
+```typescript
+import { User } from '@taruvi/sdk'
+
+const user = new User(taruviClient)
+
+const newUser = await user.createUser({
+  username: "john_doe",
+  email: "john@example.com",
+  password: "secure123",
+  confirm_password: "secure123",
+  first_name: "John",
+  last_name: "Doe",
+  is_active: true,
+  is_staff: false,
+  attributes: ""
+})
+```
+
+### Update User
+
+```typescript
+const user = new User(taruviClient)
+
+await user.updateUser("john_doe", {
+  email: "newemail@example.com",
+  first_name: "Johnny"
+})
+```
+
+### Delete User
+
+```typescript
+const user = new User(taruviClient)
+await user.deleteUser("john_doe")
+```
+
+### List Users
+
+```typescript
+const user = new User(taruviClient)
+
+const users = await user.list({
+  search: "john",
+  is_active: true,
+  is_staff: false,
+  is_superuser: false,
+  is_deleted: false,
+  ordering: "-date_joined",
+  page: 1,
+  page_size: 20
+})
+```
+
+### Get User Apps
+
+```typescript
+const user = new User(taruviClient)
+const apps = await user.getUserApps("john_doe")
+
+// Returns array of apps the user has access to
+apps.forEach(app => {
+  console.log(app.name, app.slug, app.url)
+})
+```
+
+### Complete Registration Form Example
+
+```typescript
+import { useState } from "react"
+import { User } from "@taruvi/sdk"
+import { useNavigate } from "react-router"
+
+export default function Register({ taruviClient }) {
+  const navigate = useNavigate()
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirm_password: "",
+    first_name: "",
+    last_name: "",
+    is_active: true,
+    is_staff: false
   })
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  provide(TaruviKey, client)
-}
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (formData.password !== formData.confirm_password) {
+      setError("Passwords do not match")
+      return
+    }
 
-// Composables
-export function useTaruvi() {
-  const client = inject(TaruviKey)
-  if (!client) throw new Error('Taruvi not provided')
-  return client
-}
-
-export function useAuth() {
-  const client = useTaruvi()
-  return new Auth(client)
-}
-
-export function useUser() {
-  const client = useTaruvi()
-  return new User(client)
-}
-
-// Usage in component
-import { ref, onMounted } from 'vue'
-import { useUser } from '@/composables/taruvi'
-
-export default {
-  setup() {
-    const user = useUser()
-    const userData = ref(null)
-
-    onMounted(async () => {
-      userData.value = await user.getUserData()
-    })
-
-    return { userData }
+    setLoading(true)
+    try {
+      const userClient = new User(taruviClient)
+      await userClient.createUser(formData)
+      navigate("/login")
+    } catch (err) {
+      setError(err.message || "Failed to create user")
+    } finally {
+      setLoading(false)
+    }
   }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="username"
+        value={formData.username}
+        onChange={(e) => setFormData({...formData, username: e.target.value})}
+        required
+      />
+      {/* Add other fields */}
+      <button type="submit" disabled={loading}>
+        {loading ? "Creating..." : "Register"}
+      </button>
+      {error && <div>{error}</div>}
+    </form>
+  )
 }
 ```
 
-### Vanilla JavaScript
+---
 
-Direct usage without framework.
+## Database Service (CRUD Operations)
+
+### Fetch All Records
 
 ```typescript
-import { Client, Auth, User } from '@taruvi/sdk'
+import { Database } from '@taruvi/sdk'
 
-// Create client
-const client = new Client({
-  apiKey: 'your-key',
-  appSlug: 'your-app',
-  baseUrl: 'https://test-api.taruvi.cloud'
+const db = new Database(taruviClient)
+const response = await db.from("accounts").execute()
+
+if (response.data) {
+  console.log(response.data) // Array of records
+}
+```
+
+### Fetch Single Record
+
+```typescript
+const db = new Database(taruviClient)
+const record = await db.from("accounts").get("record-id").execute()
+```
+
+### Create Record
+
+```typescript
+const db = new Database(taruviClient)
+await db.from("accounts").create({
+  name: "John Doe",
+  email: "john@example.com",
+  status: "active"
+}).execute()
+```
+
+### Update Record
+
+```typescript
+const db = new Database(taruviClient)
+await db.from("accounts").get("record-id").update({
+  name: "Updated Name",
+  status: "active"
+}).execute()
+```
+
+### Delete Record
+
+```typescript
+const db = new Database(taruviClient)
+await db.from("accounts").delete("record-id").execute()
+```
+
+### Filter Records
+
+```typescript
+const db = new Database(taruviClient)
+
+// Simple field filters
+const filtered = await db
+  .from("accounts")
+  .filter({
+    status: "active",
+    country: "USA"
+  })
+  .execute()
+
+// Advanced filters with operators
+const advanced = await db
+  .from("accounts")
+  .filter({
+    age__gte: 18,           // age >= 18
+    age__lt: 65,            // age < 65
+    name__icontains: "john", // case-insensitive contains
+    created_at__gte: "2024-01-01",
+    ordering: "-created_at"  // Sort by created_at descending
+  })
+  .execute()
+
+// Pagination
+const paginated = await db
+  .from("accounts")
+  .filter({
+    page: 1,
+    pageSize: 20
+  })
+  .execute()
+```
+
+### Populate Related Records
+
+Use `populate()` to eager load related records (foreign key relationships):
+
+```typescript
+const db = new Database(taruviClient)
+
+// Populate a single relation
+const orders = await db
+  .from("orders")
+  .populate(["customer"])
+  .execute()
+
+// Each order now includes the full customer object instead of just the ID
+console.log(orders.data[0].customer.name)
+console.log(orders.data[0].customer.email)
+
+// Populate multiple relations
+const invoices = await db
+  .from("invoices")
+  .populate(["customer", "created_by", "items"])
+  .execute()
+
+// Combine with filters
+const recentOrders = await db
+  .from("orders")
+  .filter({
+    status: "completed",
+    created_at__gte: "2024-01-01",
+    ordering: "-created_at"
+  })
+  .populate(["customer", "product"])
+  .execute()
+
+// Combine with pagination
+const paginatedOrders = await db
+  .from("orders")
+  .filter({ page: 1, pageSize: 10 })
+  .populate(["customer"])
+  .execute()
+```
+
+### Complete CRUD Example (CRM Table)
+
+```typescript
+import { useEffect, useState } from 'react'
+import { Database } from '@taruvi/sdk'
+
+export default function CrmTable({ taruviClient }) {
+  const [contacts, setContacts] = useState([])
+
+  const fetchContacts = async () => {
+    const db = new Database(taruviClient)
+    const response = await db.from("accounts").execute()
+    if (response.data) {
+      setContacts(response.data)
+    }
+  }
+
+  useEffect(() => {
+    fetchContacts()
+  }, [])
+
+  const handleCreate = async (data) => {
+    const db = new Database(taruviClient)
+    await db.from("accounts").create(data).execute()
+    fetchContacts() // Refresh
+  }
+
+  const handleDelete = async (id) => {
+    const db = new Database(taruviClient)
+    await db.from("accounts").delete(id).execute()
+    fetchContacts() // Refresh
+  }
+
+  const handleUpdate = async (id, data) => {
+    const db = new Database(taruviClient)
+    await db.from("accounts").get(id).update(data).execute()
+    fetchContacts() // Refresh
+  }
+
+  return (
+    <div>
+      <button onClick={() => handleCreate({ name: 'New Contact', status: 'active' })}>
+        Add Contact
+      </button>
+      <table>
+        {contacts.map(contact => (
+          <tr key={contact.id}>
+            <td>{contact.name}</td>
+            <td>
+              <button onClick={() => handleUpdate(contact.id, { status: 'updated' })}>
+                Edit
+              </button>
+              <button onClick={() => handleDelete(contact.id)}>
+                Delete
+              </button>
+            </td>
+          </tr>
+        ))}
+      </table>
+    </div>
+  )
+}
+```
+
+---
+
+## Storage Service (File Management)
+
+### List Files in Bucket
+
+```typescript
+import { Storage } from '@taruvi/sdk'
+
+const storage = new Storage(taruviClient)
+const files = await storage.from("documents").execute()
+
+console.log(files.data) // Array of file objects
+```
+
+### Upload Files
+
+```typescript
+const storage = new Storage(taruviClient)
+
+const filesData = {
+  files: [file1, file2], // File objects from input
+  metadatas: [{ name: "file1" }, { name: "file2" }],
+  paths: ["file1.pdf", "file2.pdf"]
+}
+
+await storage.from("documents").upload(filesData).execute()
+```
+
+### Download File
+
+```typescript
+const storage = new Storage(taruviClient)
+const file = await storage.from("documents").download("path/to/file.pdf").execute()
+```
+
+### Delete Files
+
+```typescript
+const storage = new Storage(taruviClient)
+
+// Delete single file
+await storage.from("documents").delete(["path/to/file.pdf"]).execute()
+
+// Delete multiple files
+await storage.from("documents").delete([
+  "path/to/file1.pdf",
+  "path/to/file2.pdf",
+  "path/to/file3.pdf"
+]).execute()
+```
+
+### Update File Metadata
+
+```typescript
+const storage = new Storage(taruviClient)
+await storage
+  .from("documents")
+  .update("path/to/file.pdf", {
+    filename: "newname.pdf",
+    visibility: "public",
+    metadata: { category: "reports" }
+  })
+  .execute()
+```
+
+### Filter Files
+
+```typescript
+const storage = new Storage(taruviClient)
+
+// Basic filters
+const filtered = await storage
+  .from("documents")
+  .filter({
+    search: "invoice",
+    visibility: "public",
+    mimetype_category: "document",
+    min_size: 1024,
+    ordering: "-created_at"
+  })
+  .execute()
+
+// Advanced filters with operators
+const advanced = await storage
+  .from("documents")
+  .filter({
+    // Size filters (bytes)
+    size__gte: 1024,           // >= 1KB
+    size__lte: 10485760,       // <= 10MB
+
+    // Date filters (ISO 8601)
+    created_at__gte: "2024-01-01",
+    created_at__lte: "2024-12-31",
+
+    // Search filters
+    filename__icontains: "report",
+    file__startswith: "invoice",
+    prefix: "uploads/2024/",
+
+    // MIME type filters
+    mimetype: "application/pdf",
+    mimetype_category: "image",  // image, document, video, audio, etc.
+
+    // Visibility & user filters
+    visibility: "public",
+    created_by_me: true,
+    created_by__username: "john",
+
+    // Pagination & sorting
+    page: 1,
+    pageSize: 50,
+    ordering: "-created_at"  // Sort by created_at descending
+  })
+  .execute()
+```
+
+### Complete File Upload Example
+
+```typescript
+import { useState, useRef } from 'react'
+import { Storage } from '@taruvi/sdk'
+
+export default function FileUploader({ taruviClient }) {
+  const [files, setFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const handleFileSelect = (e) => {
+    const selectedFiles = Array.from(e.target.files)
+    setFiles(selectedFiles)
+  }
+
+  const uploadFiles = async () => {
+    if (files.length === 0) return
+
+    setUploading(true)
+    try {
+      const storage = new Storage(taruviClient)
+
+      const uploadData = {
+        files: files,
+        metadatas: files.map(f => ({ name: f.name })),
+        paths: files.map(f => f.name)
+      }
+
+      await storage.from("documents").upload(uploadData).execute()
+
+      alert("Upload successful!")
+      setFiles([])
+    } catch (error) {
+      alert("Upload failed: " + error.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileSelect}
+      />
+      <button onClick={uploadFiles} disabled={uploading || files.length === 0}>
+        {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
+      </button>
+    </div>
+  )
+}
+```
+
+---
+
+## Functions Service (Serverless)
+
+### Execute Function (Sync)
+
+```typescript
+import { Functions } from '@taruvi/sdk'
+
+const functions = new Functions(taruviClient)
+
+const result = await functions.execute("my-function", {
+  async: false,
+  params: {
+    key1: "value1",
+    key2: 123
+  }
 })
 
-// Initialize services
-const auth = new Auth(client)
-const user = new User(client)
+console.log(result.data) // Function response
+```
 
-// Use services
-async function handleLogin() {
-  await auth.authenticateUser()
+### Execute Function (Async)
 
-  if (await auth.isUserAuthenticated()) {
-    const userData = await user.getUserData()
-    document.getElementById('username').textContent = userData.username
+```typescript
+const functions = new Functions(taruviClient)
+
+const result = await functions.execute("long-running-task", {
+  async: true,
+  params: { data: "value" }
+})
+
+console.log(result.invocation.invocation_id) // Track async execution
+console.log(result.invocation.celery_task_id)
+console.log(result.invocation.status)
+```
+
+### Complete Function Executor Example
+
+```typescript
+import { useState } from 'react'
+import { Functions } from '@taruvi/sdk'
+
+export default function FunctionExecutor({ taruviClient }) {
+  const [functionSlug, setFunctionSlug] = useState("")
+  const [params, setParams] = useState({})
+  const [isAsync, setIsAsync] = useState(false)
+  const [result, setResult] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const executeFunction = async () => {
+    setLoading(true)
+    try {
+      const functions = new Functions(taruviClient)
+      const response = await functions.execute(functionSlug, {
+        async: isAsync,
+        params: params
+      })
+      setResult(response)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  return (
+    <div>
+      <input
+        placeholder="Function slug"
+        value={functionSlug}
+        onChange={(e) => setFunctionSlug(e.target.value)}
+      />
+      <label>
+        <input
+          type="checkbox"
+          checked={isAsync}
+          onChange={(e) => setIsAsync(e.target.checked)}
+        />
+        Async
+      </label>
+      <button onClick={executeFunction} disabled={loading}>
+        Execute
+      </button>
+      {result && <pre>{JSON.stringify(result, null, 2)}</pre>}
+    </div>
+  )
+}
+```
+
+---
+
+## Analytics Service
+
+### Execute Analytics Query
+
+```typescript
+import { Analytics } from '@taruvi/sdk'
+
+const analytics = new Analytics(taruviClient)
+
+const result = await analytics.execute("monthly-sales-report", {
+  params: {
+    start_date: "2024-01-01",
+    end_date: "2024-12-31"
+  }
+})
+
+console.log(result.data) // Analytics query result
+```
+
+### Execute with Typed Response
+
+```typescript
+interface SalesData {
+  total_sales: number
+  orders_count: number
+  average_order_value: number
 }
 
-handleLogin()
+const analytics = new Analytics(taruviClient)
+
+const result = await analytics.execute<SalesData>("sales-summary", {
+  params: { period: "monthly" }
+})
+
+console.log(result.data?.total_sales)
+console.log(result.data?.orders_count)
+```
+
+### Complete Analytics Dashboard Example
+
+```typescript
+import { useEffect, useState } from 'react'
+import { Analytics } from '@taruvi/sdk'
+
+export default function AnalyticsDashboard({ taruviClient }) {
+  const [metrics, setMetrics] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const analytics = new Analytics(taruviClient)
+        const result = await analytics.execute("dashboard-metrics", {
+          params: {
+            date_range: "last_30_days"
+          }
+        })
+        setMetrics(result.data)
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMetrics()
+  }, [])
+
+  if (loading) return <div>Loading analytics...</div>
+
+  return (
+    <div>
+      <h2>Dashboard Metrics</h2>
+      <pre>{JSON.stringify(metrics, null, 2)}</pre>
+    </div>
+  )
+}
+```
+
+---
+
+## Settings Service
+
+### Get Site Settings
+
+```typescript
+import { Settings } from '@taruvi/sdk'
+
+const settings = new Settings(taruviClient)
+const config = await settings.get()
+
+console.log(config) // Site configuration object
+```
+
+---
+
+## Secrets Service
+
+### List Secrets
+
+```typescript
+import { Secrets } from '@taruvi/sdk'
+
+const secrets = new Secrets(taruviClient)
+const result = await secrets.list().execute()
+
+console.log(result.items) // Array of secrets
+```
+
+### Get Secret
+
+```typescript
+const secrets = new Secrets(taruviClient)
+const secret = await secrets.get("MY_SECRET_KEY").execute()
+
+console.log(secret) // Secret object with value
+```
+
+### Update Secret
+
+```typescript
+const secrets = new Secrets(taruviClient)
+
+await secrets.update("MY_SECRET", {
+  value: {
+    hostname: "db.example.com",
+    port_number: 3306,
+    username: "admin",
+    password: "secret123"
+  },
+  tags: ["mysql", "production"],
+  secret_type: "Mysql"
+}).execute()
+```
+
+---
+
+## Policy Service (Resource Permissions)
+
+### Check Resource Permissions
+
+```typescript
+import { Policy } from '@taruvi/sdk'
+
+const policy = new Policy(taruviClient)
+
+// Check permissions for multiple resources
+const result = await policy.checkResource([
+  {
+    entityType: "crm",
+    tableName: "accounts",
+    recordId: "record-123",
+    attributes: { owner_id: "user-456" },
+    actions: ["read", "update"]
+  },
+  {
+    entityType: "docs",
+    tableName: "documents",
+    recordId: "doc-789",
+    attributes: {},
+    actions: ["delete"]
+  }
+])
+```
+
+### Complete Permission Check Example
+
+```typescript
+import { useState, useEffect } from 'react'
+import { Policy } from '@taruvi/sdk'
+
+export default function ResourceGuard({ taruviClient, children, resource }) {
+  const [allowed, setAllowed] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const checkPermission = async () => {
+      try {
+        const policy = new Policy(taruviClient)
+        const result = await policy.checkResource([
+          {
+            entityType: resource.entityType,
+            tableName: resource.table,
+            recordId: resource.id,
+            attributes: resource.attributes || {},
+            actions: ["read"]
+          }
+        ])
+        setAllowed(result.allowed)
+      } catch (error) {
+        console.error("Permission check failed:", error)
+        setAllowed(false)
+      } finally {
+        setLoading(false)
+      }
+    }
+    checkPermission()
+  }, [resource])
+
+  if (loading) return <div>Checking permissions...</div>
+  if (!allowed) return <div>Access denied</div>
+  return children
+}
+```
+
+---
+
+## App Service
+
+### Get App Roles
+
+```typescript
+import { App } from '@taruvi/sdk'
+
+const app = new App(taruviClient)
+const roles = await app.roles().execute()
+
+console.log(roles) // Array of role objects with id, name, permissions
+```
+
+### Complete Roles List Example
+
+```typescript
+import { useEffect, useState } from 'react'
+import { App } from '@taruvi/sdk'
+
+export default function RolesList({ taruviClient }) {
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const app = new App(taruviClient)
+        const response = await app.roles().execute()
+        setRoles(response.data || [])
+      } catch (error) {
+        console.error("Failed to fetch roles:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRoles()
+  }, [])
+
+  if (loading) return <div>Loading roles...</div>
+
+  return (
+    <ul>
+      {roles.map(role => (
+        <li key={role.id}>
+          <strong>{role.name}</strong>
+          <span>{role.permissions?.join(", ")}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+---
+
+## Common Patterns
+
+### Loading States
+
+```typescript
+const [data, setData] = useState(null)
+const [loading, setLoading] = useState(true)
+const [error, setError] = useState(null)
+
+useEffect(() => {
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const db = new Database(taruviClient)
+      const response = await db.from("table").execute()
+      setData(response.data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+  fetchData()
+}, [])
+
+if (loading) return <div>Loading...</div>
+if (error) return <div>Error: {error}</div>
+return <div>{/* Render data */}</div>
+```
+
+### Error Handling
+
+```typescript
+try {
+  const user = new User(taruviClient)
+  await user.createUser(data)
+} catch (error) {
+  if (error.response?.status === 400) {
+    console.error("Validation error:", error.response.data)
+  } else if (error.response?.status === 401) {
+    console.error("Unauthorized")
+  } else {
+    console.error("Unknown error:", error.message)
+  }
+}
+```
+
+### Refresh Data After Mutation
+
+```typescript
+const [items, setItems] = useState([])
+
+const fetchItems = async () => {
+  const db = new Database(taruviClient)
+  const response = await db.from("items").execute()
+  setItems(response.data || [])
+}
+
+const createItem = async (data) => {
+  const db = new Database(taruviClient)
+  await db.from("items").create(data).execute()
+  await fetchItems() // Refresh list
+}
+
+const deleteItem = async (id) => {
+  const db = new Database(taruviClient)
+  await db.from("items").delete(id).execute()
+  await fetchItems() // Refresh list
+}
+
+const updateItem = async (id, data) => {
+  const db = new Database(taruviClient)
+  await db.from("items").get(id).update(data).execute()
+  await fetchItems() // Refresh list
+}
 ```
 
 ---
 
 ## TypeScript Types
 
-All public types are exported from the main entry point.
+### Import Types
 
 ```typescript
 import type {
   TaruviConfig,
+  AuthTokens,
   UserCreateRequest,
   UserResponse,
-  UserDataResponse
+  UserDataResponse,
+  FunctionRequest,
+  FunctionResponse,
+  FunctionInvocation,
+  DatabaseRequest,
+  DatabaseResponse,
+  DatabaseFilters,
+  StorageRequest,
+  StorageUpdateRequest,
+  StorageResponse,
+  StorageFilters,
+  SettingsResponse,
+  SecretRequest,
+  SecretResponse,
+  Principal,
+  Resource,
+  Resources,
+  RoleResponse,
+  AnalyticsRequest,
+  AnalyticsResponse
 } from '@taruvi/sdk'
-
-// Use types in your application
-const config: TaruviConfig = {
-  apiKey: 'key',
-  appSlug: 'app',
-  baseUrl: 'https://test-api.taruvi.cloud'
-}
-
-const newUser: UserCreateRequest = {
-  username: 'john_doe',
-  email: 'john@example.com',
-  password: 'secure123'
-}
 ```
 
----
-
-## Architecture
-
-### Design Principles
-
-The Taruvi SDK follows these architectural principles:
-
-1. **Dependency Injection** - No singletons, explicit dependencies
-2. **Lazy Initialization** - Create only what you need
-3. **Internal API Protection** - Internal utilities marked with `@internal`
-4. **Type Safety** - Full TypeScript support with strict mode
-5. **Tree-Shaking** - Unused code is eliminated by bundlers
-
-### Project Structure
-
-```
-src/
-├── lib/                      # Public API (safe to use)
-│   ├── auth/                 # Auth service
-│   ├── user/                 # User service
-│   ├── storage/              # Storage service
-│   ├── settings/             # Settings service
-│   ├── database/             # Database service (planned)
-│   └── function/             # Functions service (planned)
-│
-├── lib-internal/             # Internal utilities (not public)
-│   ├── http/                 # HTTP client wrapper
-│   ├── token/                # Token management
-│   ├── routes/               # API route definitions
-│   ├── errors/               # Error handling
-│   └── utils/                # Helper functions
-│
-├── client.ts                 # Main Client class
-├── index.ts                  # Public exports
-└── types.ts                  # Shared types
-```
-
-### Internal vs Public API
-
-**Public API** (safe to use):
-- `Client` - Main client class
-- `Auth`, `User`, `Database`, `Storage`, `Functions` - Service clients
-- `TaruviConfig` - Configuration interface
-- Exported types from `index.ts`
-
-**Internal API** (do not use directly):
-- `client.httpClient` - Marked with `@internal`
-- `client.tokenClient` - Marked with `@internal`
-- Files in `lib-internal/` folder
-
-> ⚠️ **Warning:** Using internal APIs may break in future versions without notice
-
----
-
-## Testing
-
-### Mocking the SDK
+### Type Usage
 
 ```typescript
-import { Client, User } from '@taruvi/sdk'
-import { vi, describe, it, expect } from 'vitest'
+const config: TaruviConfig = {
+  apiKey: "key",
+  appSlug: "app",
+  baseUrl: "https://api.taruvi.cloud",
+  deskUrl: "https://desk.taruvi.cloud", // optional
+  token: "existing-token" // optional
+}
 
-describe('User Service', () => {
-  it('should fetch user data', async () => {
-    // Mock HttpClient
-    const mockHttpClient = {
-      get: vi.fn().mockResolvedValue({
-        username: 'testuser',
-        email: 'test@example.com'
-      })
-    }
+const userData: UserCreateRequest = {
+  username: "john",
+  email: "john@example.com",
+  password: "pass123",
+  confirm_password: "pass123",
+  first_name: "John",
+  last_name: "Doe",
+  is_active: true,
+  is_staff: false
+}
 
-    // Mock Client
-    const mockClient = {
-      httpClient: mockHttpClient,
-      getConfig: () => ({
-        apiKey: 'test',
-        appSlug: 'test',
-        baseUrl: 'test'
-      })
-    } as unknown as Client
+// Database filters with operators
+const dbFilters: DatabaseFilters = {
+  page: 1,
+  pageSize: 20,
+  ordering: "-created_at",
+  status: "active",
+  age__gte: 18,
+  name__icontains: "john"
+}
 
-    // Test User service
-    const user = new User(mockClient)
-    const data = await user.getUserData()
+// Storage filters with comprehensive options
+const storageFilters: StorageFilters = {
+  page: 1,
+  pageSize: 50,
+  search: "invoice",
+  visibility: "public",
+  mimetype_category: "document",
+  size__gte: 1024,
+  size__lte: 10485760,
+  created_at__gte: "2024-01-01",
+  ordering: "-created_at",
+  created_by_me: true
+}
 
-    expect(data.username).toBe('testuser')
-    expect(mockHttpClient.get).toHaveBeenCalledWith('api/users/me/')
-  })
+// Policy types for permission checking
+const principal: Principal = {
+  id: "user-123",
+  roles: ["admin", "editor"],
+  attr: { department: "engineering" }
+}
+
+const resources: Resources = [
+  {
+    entityType: "crm",
+    tableName: "accounts",
+    recordId: "acc-456",
+    attributes: { owner_id: "user-123" },
+    actions: ["read", "update", "delete"]
+  }
+]
+```
+
+---
+
+## Filter Operators Reference
+
+### Database Filter Operators (Django-style)
+
+The Database service supports Django-style field lookups:
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `field` | Exact match | `{ status: "active" }` |
+| `field__gte` | Greater than or equal | `{ age__gte: 18 }` |
+| `field__gt` | Greater than | `{ age__gt: 17 }` |
+| `field__lte` | Less than or equal | `{ age__lte: 65 }` |
+| `field__lt` | Less than | `{ age__lt: 66 }` |
+| `field__icontains` | Case-insensitive contains | `{ name__icontains: "john" }` |
+| `field__contains` | Case-sensitive contains | `{ name__contains: "John" }` |
+| `field__istartswith` | Case-insensitive starts with | `{ email__istartswith: "admin" }` |
+| `field__startswith` | Case-sensitive starts with | `{ code__startswith: "PRE" }` |
+| `field__iendswith` | Case-insensitive ends with | `{ domain__iendswith: ".com" }` |
+| `field__endswith` | Case-sensitive ends with | `{ filename__endswith: ".pdf" }` |
+| `field__in` | Value in list | `{ status__in: ["active", "pending"] }` |
+| `field__isnull` | Is null check | `{ deleted_at__isnull: true }` |
+| `ordering` | Sort results | `{ ordering: "-created_at" }` (- for desc) |
+| `page` | Page number | `{ page: 1 }` |
+| `pageSize` | Items per page | `{ pageSize: 20 }` |
+
+### Populate (Eager Loading)
+
+Use the `populate()` method to eager load related records:
+
+```typescript
+// Populate accepts an array of relation field names
+db.from("orders").populate(["customer", "items"]).execute()
+
+// This adds ?populate=customer,items to the query string
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `populate` | `string[]` | Array of relation field names to eager load |
+
+### Storage Filter Options
+
+The Storage service supports these specialized filters:
+
+| Category | Filters | Description |
+|----------|---------|-------------|
+| **Size** | `size__gte`, `size__lte`, `size__gt`, `size__lt`, `min_size`, `max_size` | Filter by file size in bytes |
+| **Dates** | `created_at__gte`, `created_at__lte`, `created_after`, `created_before`, `updated_at__gte`, `updated_at__lte` | Filter by dates (ISO 8601 format) |
+| **Search** | `search`, `filename__icontains`, `prefix`, `file`, `file__icontains`, `file__startswith`, `file__istartswith`, `metadata_search` | Search for files |
+| **MIME Type** | `mimetype`, `mimetype__in`, `mimetype_category` | Filter by file type (document, image, video, audio, etc.) |
+| **Visibility** | `visibility` | Filter by public/private visibility |
+| **User** | `created_by_me`, `modified_by_me`, `created_by__username`, `created_by__username__icontains` | Filter by user |
+| **Pagination** | `page`, `pageSize` | Paginate results |
+| **Sorting** | `ordering` | Sort results (e.g., "-created_at") |
+
+---
+
+## Quick Reference
+
+| Service | Import | Purpose |
+|---------|--------|---------|
+| `Client` | `import { Client }` | Main SDK client |
+| `Auth` | `import { Auth }` | Authentication |
+| `User` | `import { User }` | User management |
+| `Database` | `import { Database }` | App data CRUD |
+| `Storage` | `import { Storage }` | File management |
+| `Functions` | `import { Functions }` | Serverless functions |
+| `Settings` | `import { Settings }` | Site configuration |
+| `Secrets` | `import { Secrets }` | Sensitive data |
+| `Policy` | `import { Policy }` | Resource permissions |
+| `App` | `import { App }` | App roles & config |
+| `Analytics` | `import { Analytics }` | Analytics queries |
+
+---
+
+## Chaining Pattern
+
+All query-building services use method chaining:
+
+```typescript
+// Database
+const db = new Database(taruviClient)
+await db.from("table").get("id").update(data).execute()
+await db.from("table").filter({ status: "active" }).execute()
+await db.from("table").filter({ page: 1 }).populate(["related_field"]).execute()
+await db.from("table").create({ name: "New" }).execute()
+
+// Storage
+const storage = new Storage(taruviClient)
+await storage.from("bucket").delete(["path/to/file.pdf"]).execute()
+await storage.from("bucket").filter({ search: "query" }).execute()
+await storage.from("bucket").download("path/to/file.pdf").execute()
+```
+
+**Always call `.execute()` at the end to run the query!**
+
+---
+
+## Environment Variables
+
+```env
+VITE_TARUVI_API_KEY=your-api-key
+VITE_TARUVI_APP_SLUG=your-app
+VITE_TARUVI_BASE_URL=https://taruvi-site.taruvi.cloud
+```
+
+```typescript
+const client = new Client({
+  apiKey: import.meta.env.VITE_TARUVI_API_KEY,
+  appSlug: import.meta.env.VITE_TARUVI_APP_SLUG,
+  baseUrl: import.meta.env.VITE_TARUVI_BASE_URL
 })
 ```
 
 ---
 
-## Development Status
-
-### Implementation Progress
-
-| Service | Status | Progress | Notes |
-|---------|--------|----------|-------|
-| Core Infrastructure | ✅ Complete | 90% | Client, HTTP, Token management |
-| User Service | ✅ Functional | 80% | CRUD operations working |
-| Auth Service | 🚧 Partial | 60% | Basic auth working, SSO planned |
-| Storage Service | 🚧 Partial | 70% | Query builder working |
-| Settings Service | ✅ Functional | 70% | Site config fetching |
-| Database Service | 📋 Planned | 0% | Not yet implemented |
-| Functions Service | 📋 Planned | 0% | Not yet implemented |
-
-### Legend
-- ✅ **Complete/Functional**: Ready for production use
-- 🚧 **Partial**: Core functionality works, some features pending
-- 📋 **Planned**: Not yet implemented
-
----
-
-## Roadmap
-
-### v1.2 (Next Release)
-- [ ] Complete Auth service (SSO, token refresh, sign out)
-- [ ] Add error handling classes
-- [ ] Implement token management (set, clear, expiration)
-- [ ] Add PATCH HTTP method
-- [ ] Add retry logic for failed requests
-
-### v1.3 (Future)
-- [ ] Database service with query builder
-- [ ] Functions service for serverless invocation
-- [ ] File upload/download in Storage
-- [ ] Comprehensive test suite
-
-### v2.0 (Long-term)
-- [ ] Real-time subscriptions (WebSocket)
-- [ ] Offline support with local caching
-- [ ] Browser DevTools extension
-
----
-
-## API Reference
-
-For complete API documentation, see [adr.md](./adr.md).
-
-For usage examples, see [USAGE_EXAMPLE.md](./USAGE_EXAMPLE.md).
-
----
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-### Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/taruvi/taruvi-sdk
-cd taruvi-sdk
-
-# Install dependencies
-npm install
-
-# Build SDK
-npm run build
-
-# Run tests (when available)
-npm test
-```
-
----
-
-## License
-
-MIT License - see [LICENSE](./LICENSE) file for details.
-
----
-
-## Support
-
-For questions, issues, or feature requests:
-- 📧 Email: support@taruvi.io
-- 🐛 Issues: [GitHub Issues](https://github.com/taruvi/taruvi-sdk/issues)
-- 📖 Docs: [Documentation](https://docs.taruvi.io)
-
----
-
-## Related Resources
-
-- [Architecture Decision Record (ADR)](./adr.md) - Complete architectural documentation
-- [Usage Examples](./USAGE_EXAMPLE.md) - Additional code examples
-- [Taruvi Platform Docs](https://docs.taruvi.io) - Platform documentation
-- [API Reference](https://api-docs.taruvi.io) - REST API documentation
-
----
-
-## Acknowledgments
-
-Inspired by:
-- [Supabase JS](https://github.com/supabase/supabase-js) - Query builder pattern
-- [Appwrite SDK](https://github.com/appwrite/sdk-for-web) - Service architecture
-- [Stripe SDK](https://github.com/stripe/stripe-node) - Client pattern
-
----
-
-**Built with ❤️ by the Taruvi Team**
+**Generated from production code examples • Last updated: 2026-01-05**
