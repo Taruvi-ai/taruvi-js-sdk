@@ -1,12 +1,16 @@
-export enum MimeTypeCategory {
-    IMAGE = 'image',
-    VIDEO = 'video',
-    AUDIO = 'audio',
-    APPLICATION = 'application',
-    TEXT = 'text'
-}
+export const MimeTypeCategory = {
+    IMAGE: 'image',
+    VIDEO: 'video',
+    AUDIO: 'audio',
+    APPLICATION: 'application',
+    TEXT: 'text'
+} as const
 
-export enum Visibility {
-    PUBLIC = 'public',
-    PRIVATE = 'private'
-}
+export type MimeTypeCategory = typeof MimeTypeCategory[keyof typeof MimeTypeCategory]
+
+export const Visibility = {
+    PUBLIC: 'public',
+    PRIVATE: 'private'
+} as const
+
+export type Visibility = typeof Visibility[keyof typeof Visibility]
