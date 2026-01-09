@@ -1,5 +1,3 @@
-import type { UserList } from "../../lib/user/types.js";
-
 export const UserRoutes = {
     baseUrl: "api/users/",
     getCurrentUser: () => `${UserRoutes.baseUrl}me/`,

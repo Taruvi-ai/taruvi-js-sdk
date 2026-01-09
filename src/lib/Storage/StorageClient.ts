@@ -1,5 +1,5 @@
 import type { Client } from "../../client.js";
-import type { BucketFileUpload, BucketUrlParams } from "./types.js";
+import type { BucketUrlParams } from "./types.js";
 import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
 import type { TaruviConfig, StorageFilters } from "../../types.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";

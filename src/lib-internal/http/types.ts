@@ -1,10 +1,12 @@
 /**
  * HTTP methods supported by the HttpClient
  */
-export enum HttpMethod {
-    GET = 'GET',
-    POST = 'POST',
-    PUT = 'PUT',
-    PATCH = 'PATCH',
-    DELETE = 'DELETE'
-}
+export const HttpMethod = {
+    GET: 'GET',
+    POST: 'POST',
+    PUT: 'PUT',
+    PATCH: 'PATCH',
+    DELETE: 'DELETE'
+} as const
+
+export type HttpMethod = typeof HttpMethod[keyof typeof HttpMethod]

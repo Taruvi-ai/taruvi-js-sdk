@@ -36,8 +36,8 @@ export class HttpClient {
         return headers
     }
 
-    async get<T>(endpoint: string) {
-        const { data } = await axios.get(`${this.config.baseUrl}/${endpoint}`, {
+    async get<T>(endpoint: string): Promise<T> {
+        const { data } = await axios.get<T>(`${this.config.baseUrl}/${endpoint}`, {
             headers: this.getAuthHeaders()
         })
         return data
