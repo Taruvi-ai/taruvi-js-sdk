@@ -1,6 +1,6 @@
 {
   "name": "@taruvi/sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Taruvi SDK",
   "main": "src/index.ts",
   "type": "module",
