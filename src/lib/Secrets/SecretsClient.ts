@@ -25,11 +25,6 @@ export class Secrets {
         return new Secrets(this.client, { ...this.urlParams, path }, undefined, HttpMethod.GET)
     }
 
-    update(key: string, body: object): Secrets {
-        const path = SecretsRoutes.update(key)
-        return new Secrets(this.client, { ...this.urlParams, path }, body, HttpMethod.PUT)
-    }
-
     async execute<T = unknown>(): Promise<T> {
         const url = this.urlParams.path ?? SecretsRoutes.baseUrl
 

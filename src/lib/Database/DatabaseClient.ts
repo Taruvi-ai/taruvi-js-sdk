@@ -2,11 +2,11 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes, type DatabaseRouteKey } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters } from "../../types.js";
-import type { UrlParams } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
 // Used to access app data
-export class Database {
+export class Database<T = Record<string, unknown>> {
     private client: Client
     private urlParams: UrlParams
     private config: TaruviConfig
@@ -21,35 +21,83 @@ export class Database {
         this.body = body
         this.config = this.client.getConfig()
         this.queryParams = queryParams
-    }       
-
-    from(dataTables: string): Database {
-        return new Database(this.client, { ...this.urlParams, dataTables }, undefined, undefined)
     }
 
-    filter(filters: DatabaseFilters): Database {
-        return new Database(this.client, { ...this.urlParams }, undefined, undefined, {...this.queryParams, ...filters})
+    from<U = Record<string, unknown>>(dataTables: string): Database<U> {
+        return new Database<U>(this.client, { ...this.urlParams, dataTables }, undefined, undefined)
     }
 
-    populate(populate: string[]): Database {
-        return new Database(this.client, { ...this.urlParams, }, undefined, undefined, {...this.queryParams, populate: populate.join(',')})
+    filter(field: string, operator: FilterOperator, value: string | number | boolean | (string | number)[]): Database<T> {
+        const filterKey = operator === 'eq' ? field : `${field}__${operator}`
+        // For 'in' and 'nin' operators, join array values with comma
+        const filterValue = Array.isArray(value) ? value.join(',') : value
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            [filterKey]: filterValue
+        })
     }
 
-    get(recordId: string): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams, recordId }, HttpMethod.GET)
+    sort(field: string, order: SortOrder = 'asc'): Database<T> {
+        const ordering = order === 'desc' ? `-${field}` : field
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            ordering
+        })
     }
 
-    create(body: any): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.POST, body)
+    pageSize(size: number): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            page_size: size
+        })
     }
 
-    update(body: any): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams }, HttpMethod.PATCH, body)
+    page(num: number): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            page: num
+        })
     }
 
-    delete(recordId?: any): Database {
-        return new Database(this.client, this.urlParams = { ...this.urlParams, recordId }, HttpMethod.DELETE)
+    populate(populate: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            populate: populate.join(',')
+        })
     }
+
+    get(recordId: string): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.GET)
+    }
+
+    create(body: Partial<T> | Partial<T>[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object)
+    }
+
+    update(body: Partial<T> | Partial<T>[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object)
+    }
+
+    delete(recordId: string): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.DELETE)
+    }
+
+    async first(): Promise<T | null> {
+        const results = await this.execute()
+        if (Array.isArray(results)) {
+            return results[0] ?? null
+        }
+        return results ?? null
+    }
+
+    async count(): Promise<number> {
+        const results = await this.execute()
+        if (Array.isArray(results)) {
+            return results.length
+        }
+        return 0
+    }
+
     private buildRoute(): string {
         return (
             DatabaseRoutes.baseUrl(this.config.appSlug) +
@@ -68,7 +116,7 @@ export class Database {
         )
     }
 
-    async execute() {
+    async execute(): Promise<T | T[]> {
         // Build the API URL
         const url = this.buildRoute()
 
@@ -93,10 +141,3 @@ export class Database {
         }
     }
 }
-
-
-// TODO: Implement storage operations
-// - upload files
-// - download files
-// - delete files
-// - list files

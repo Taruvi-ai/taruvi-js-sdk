@@ -20,7 +20,7 @@ export type { UserCreateRequest, UserCreateResponse as UserResponse, UserDataRes
 export type { Principal, Resource, Resources } from "./lib/Policy/types.js"
 export type { RoleResponse } from "./lib/App/types.js"
 export type { FunctionRequest, FunctionResponse, FunctionInvocation } from "./lib/Function/types.js"
-export type { DatabaseRequest, DatabaseResponse } from "./lib/Database/types.js"
+export type { DatabaseRequest, DatabaseResponse, FilterOperator, SortOrder } from "./lib/Database/types.js"
 export type { StorageRequest, StorageUpdateRequest, StorageResponse } from "./lib/Storage/types.js"
 export type { SettingsResponse } from "./lib/Settings/types.js"
 export type { SecretRequest, SecretResponse } from "./lib/Secrets/types.js"

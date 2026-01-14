@@ -11,7 +11,7 @@ export interface TaruviConfig {
 export interface StorageFilters {
     // Pagination (DRF style)
     page?: number
-    pageSize?: number
+    page_size?: number
 
     // Range Filters - Size (in bytes)
     size__gte?: number
@@ -58,10 +58,13 @@ export interface StorageFilters {
 export interface DatabaseFilters {
     // Pagination (DRF style)
     page?: number
-    pageSize?: number
+    page_size?: number
 
     // Sorting (DRF style: "-field" for desc, "field" for asc)
     ordering?: string
+
+    // Populate relations
+    populate?: string
 
     // Dynamic filters - allows any field with operators
     [key: string]: string | number | boolean | undefined

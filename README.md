@@ -564,7 +564,6 @@ const storage = new Storage(taruviClient)
 await storage
   .from("documents")
   .update("path/to/file.pdf", {
-    filename: "newname.pdf",
     visibility: "public",
     metadata: { category: "reports" }
   })
@@ -893,14 +892,7 @@ console.log(secret) // Secret object with value
 const secrets = new Secrets(taruviClient)
 
 await secrets.update("MY_SECRET", {
-  value: {
-    hostname: "db.example.com",
-    port_number: 3306,
-    username: "admin",
-    password: "secret123"
-  },
-  tags: ["mysql", "production"],
-  secret_type: "Mysql"
+  value: "my-secret-value"
 }).execute()
 ```
 
@@ -1162,7 +1154,8 @@ const userData: UserCreateRequest = {
   first_name: "John",
   last_name: "Doe",
   is_active: true,
-  is_staff: false
+  is_staff: false,
+  attributes: ""
 }
 
 // Database filters with operators
@@ -1325,4 +1318,4 @@ const client = new Client({
 
 ---
 
-**Generated from production code examples • Last updated: 2026-01-05**
+**Generated from production code examples • Last updated: 2026-01-12**
