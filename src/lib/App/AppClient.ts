@@ -21,6 +21,10 @@ export class App {
         return new App(this.client, { ...this.urlParams, roles: "roles" }, HttpMethod.GET)
     }
 
+    settings() {
+        return new App(this.client, {...this.urlParams, settings: "settings"}, HttpMethod.GET)
+    }
+
     private buildRoute(): string {
         return (
             AppRoutes.baseUrl(this.config.appSlug) +

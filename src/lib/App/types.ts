@@ -7,6 +7,7 @@ export type AppOperation = HttpMethod
 export interface UrlParams {
     appSlug?: string
     roles?: string
+    settings?: string
 }
 
 export interface AppClientInterface {
@@ -22,4 +23,20 @@ export interface RoleResponse {
     created_at?: string
     updated_at?: string
     [key: string]: unknown
+}
+
+export interface SettingsResponse {
+    display_name: string
+    icon: string | null
+    icon_url: string | null
+    primary_color: string
+    secondary_color: string
+    banner_image: string | null
+    banner_image_url: string | null
+    category: string
+    documentation_url: string | null
+    support_email: string | null
+    default_frontend_worker_url: string | null
+    created_at: string
+    updated_at: string
 }

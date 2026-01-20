@@ -1,6 +1,7 @@
 export const AppRoutes = {
-    baseUrl: (appSlug: string) => `api/app/${appSlug}`,
-    roles: (): string => `/roles`
+    baseUrl: (appSlug: string) => `api/apps/${appSlug}`,
+    roles: (): string => `/roles`,
+    settings: (): string => "/settings/"
 }
 
 type AllRouteKeys = keyof typeof AppRoutes
