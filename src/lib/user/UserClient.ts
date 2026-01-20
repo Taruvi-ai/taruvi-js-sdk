@@ -21,6 +21,10 @@ export class User {
         return await this.client.httpClient.put(UserRoutes.updateUser(username), body)
     }
 
+    async getUser(username: string, body: UserUpdateRequest): Promise<UserCreateResponse> {
+        return await this.client.httpClient.put(UserRoutes.getUser(username), body)
+    }
+
     async list(filters: UserList) {
         const queryString = buildQueryString(filters as unknown as Record<string, unknown>)
         return await this.client.httpClient.get(UserRoutes.listUser(queryString))
