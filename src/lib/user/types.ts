@@ -1,23 +1,29 @@
 export interface UserCreateRequest {
-    username: string,
-    email: string,
-    password: string,
-    confirm_password: string,
-    first_name: string,
-    last_name: string,
-    is_active: boolean,
-    is_staff: boolean,
-    attributes: string
+    // Required fields
+    username: string
+    email: string
+    first_name: string
+    last_name: string
+    password: string
+    confirm_password: string
+    // Optional fields
+    is_active?: boolean
+    is_staff?: boolean
+    attributes?: string
 }
 
 export interface UserCreateResponse {
-    username: string,
-    email: string,
-    first_name: string,
-    last_name: string,
-    is_active: boolean,
-    is_staff: boolean,
-    attributes: string
+    id: number
+    uuid: string
+    username: string
+    email: string
+    first_name: string
+    last_name: string
+    is_active: boolean
+    is_staff: boolean
+    is_superuser: boolean
+    is_deleted: boolean
+    date_joined: string
 }
 
 export interface UserDataResponse {
@@ -36,25 +42,26 @@ export interface UserDataResponse {
 }
 
 export interface UserUpdateRequest {
-    username?: string,
-    email?: string,
-    password?: string,
-    confirm_password?: string,
-    first_name?: string,
-    last_name?: string,
-    is_active?: boolean,
-    is_staff?: boolean,
-    attributes?: string
+    username?: string
+    email?: string
+    first_name?: string
+    last_name?: string
+    is_active?: boolean
+    is_staff?: boolean
 }
 
 export interface UserUpdateResponse {
-    username: string,
-    email: string,
-    first_name: string,
-    last_name: string,
-    is_active: boolean,
-    is_staff: boolean,
-    attributes: string
+    id: number
+    uuid: string
+    username: string
+    email: string
+    first_name: string
+    last_name: string
+    is_active: boolean
+    is_staff: boolean
+    is_superuser: boolean
+    is_deleted: boolean
+    date_joined: string
 }
 
 export interface UserList {
