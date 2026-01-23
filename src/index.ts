@@ -16,7 +16,19 @@ export { Analytics } from "./lib/Analytics/AnalyticsClient.js"
 // Export types
 export type { TaruviConfig, StorageFilters, DatabaseFilters } from "./types.js"
 export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
-export type { UserCreateRequest, UserCreateResponse as UserResponse, UserDataResponse, UserUpdateRequest, UserUpdateResponse, UserGroup, UserPermission, UserRole, UserList, UserApp, UserAppsResponse } from "./lib/user/types.js"
+export type {
+  UserCreateRequest,
+  UserCreateResponse as UserResponse,
+  UserDataResponse as TaruviUser,
+  UserUpdateRequest,
+  UserUpdateResponse,
+  UserGroup,
+  UserPermission,
+  UserRole,
+  UserList,
+  UserApp,
+  UserAppsResponse
+} from "./lib/user/types.js"
 export type { Principal, Resource, Resources } from "./lib/Policy/types.js"
 export type { RoleResponse, SettingsResponse as AppSettingsResponse } from "./lib/App/types.js"
 export type { FunctionRequest, FunctionResponse, FunctionInvocation } from "./lib/Function/types.js"
