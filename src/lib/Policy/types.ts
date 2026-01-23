@@ -22,3 +22,19 @@ export type ResourceCheckResponse = {
     allowed: boolean
     reason: string
 }
+
+export type PolicyCheckResult = {
+    resource: Resource
+    actions: Record<string, string>
+}
+
+export type PolicyCheckBatchResult = {
+    requestId: string
+    results: PolicyCheckResult[]
+}
+
+export type GetAllowedActionsOptions = {
+    actions?: string[]
+    principal?: Principal
+    auxData?: Record<string, unknown>
+}

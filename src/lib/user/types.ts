@@ -84,3 +84,19 @@ export interface UserApp {
 }
 
 export type UserAppsResponse = UserApp[]
+
+export interface AssignRolesRequest {
+    roles: string[]
+    usernames: string[]
+    expires_at?: string
+}
+
+export interface RevokeRolesRequest {
+    roles: string[]
+    usernames: string[]
+}
+
+export interface RolesResponse {
+    message: string
+    count: number
+}

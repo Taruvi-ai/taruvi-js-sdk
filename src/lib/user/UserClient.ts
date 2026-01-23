@@ -1,5 +1,5 @@
 import type { Client } from "../../client.js";
-import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserList, UserUpdateRequest, UserAppsResponse } from "./types.js";
+import type { UserCreateRequest, UserCreateResponse, UserDataResponse, UserList, UserUpdateRequest, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse } from "./types.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -9,11 +9,6 @@ export class User {
 
     constructor(client: Client) {
         this.client = client
-    }
-    
-    // - getUserProfile
-    async getUserData(): Promise<UserDataResponse> {
-        return await this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser())
     }
 
     // - updateUser
@@ -47,6 +42,19 @@ export class User {
         return await this.client.httpClient.delete(UserRoutes.deleteUser(username))
     }
 
-    // TODO: Implement user management methods
-    // - token getter (access JWT token)
+    // - assignRoles
+    async assignRoles(request: AssignRolesRequest): Promise<RolesResponse> {
+        return await this.client.httpClient.post<RolesResponse, AssignRolesRequest>(
+            UserRoutes.assignRoles(),
+            request
+        )
+    }
+
+    // - revokeRoles
+    async revokeRoles(request: RevokeRolesRequest): Promise<RolesResponse> {
+        return await this.client.httpClient.delete<RolesResponse>(
+            UserRoutes.revokeRoles(),
+            request
+        )
+    }
 }
