@@ -26,19 +26,44 @@ export interface UserCreateResponse {
     date_joined: string
 }
 
+export interface UserGroup {
+    id: number
+    name: string
+}
+
+export interface UserPermission {
+    id: number
+    name: string
+    codename: string
+    content_type: string // "app_label.model"
+}
+
+export interface UserRole {
+    name: string
+    slug: string
+    type: "app_role"
+    app_slug: string
+    source: "direct" | "site_role" | "inherited"
+}
+
 export interface UserDataResponse {
-    id: number,
-    username: string,
-    email: string,
-    first_name: string,
-    last_name: string,
-    full_name: string,
-    is_active: boolean,
-    is_staff: boolean,
-    is_deleted: boolean,
-    date_joined: string, // ISO 8601 date-time string
-    last_login: string, // ISO 8601 date-time string
-    attributes: string
+    id: number
+    username: string
+    email: string
+    first_name: string
+    last_name: string
+    full_name: string
+    is_active: boolean
+    is_staff: boolean
+    is_superuser: boolean
+    is_deleted: boolean
+    date_joined: string // ISO 8601 date-time string
+    last_login: string // ISO 8601 date-time string
+    groups: UserGroup[]
+    user_permissions: UserPermission[]
+    attributes: Record<string, unknown>
+    missing_attributes: string[]
+    roles: UserRole[]
 }
 
 export interface UserUpdateRequest {

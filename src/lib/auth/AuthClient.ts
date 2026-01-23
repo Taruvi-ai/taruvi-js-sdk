@@ -1,4 +1,6 @@
 import type { Client } from "../../client.js";
+import type { UserDataResponse } from "../user/types.js";
+import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 
 /**
  * Auth Client - Handles user authentication using Web UI Flow
@@ -193,26 +195,18 @@ export class Auth {
     }
 
     /**
-     * Get current user info from access token (JWT decode)
-     * Note: This only decodes the token, doesn't validate signature
+     * Get current user from API
+     * @returns Promise with user data or null if not authenticated
      */
-    getCurrentUser(): any | null {
-        const accessToken = this.getAccessToken()
-
-        if (!accessToken) {
+    async getCurrentUser(): Promise<UserDataResponse | null> {
+        if (!this.isUserAuthenticated()) {
             return null
         }
 
         try {
-            // Decode JWT (middle part is payload)
-            const parts = accessToken.split(".")
-            if (parts.length !== 3 || !parts[1]) {
-                throw new Error("Invalid JWT format")
-            }
-            const payload = JSON.parse(atob(parts[1]))
-            return payload
+            return await this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser())
         } catch (error) {
-            console.error("Failed to decode access token:", error)
+            console.error("Failed to fetch current user:", error)
             return null
         }
     }
