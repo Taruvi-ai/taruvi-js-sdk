@@ -115,7 +115,7 @@ export class TokenClient {
                 return null
             }
 
-            const tokens: any = {
+            const tokens: AuthTokens = {
                 accessToken,
                 refreshToken,
                 tokenType: tokenType || 'Bearer',

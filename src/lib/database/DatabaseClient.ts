@@ -117,6 +117,10 @@ export class Database<T = Record<string, unknown>> {
     }
 
     async execute(): Promise<T | T[]> {
+        if (!this.urlParams.dataTables) {
+            throw new Error('Table name is required. Call .from(tableName) first.')
+        }
+
         // Build the API URL
         const url = this.buildRoute()
 

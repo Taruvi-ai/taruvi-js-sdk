@@ -25,6 +25,10 @@ export class Secrets {
      * @returns Secrets instance for chaining with execute()
      */
     get(key: string, options: GetSecretOptions = {}): Secrets {
+        if (!key || typeof key !== 'string') {
+            throw new Error('Secret key is required and must be a string.')
+        }
+
         const path = SecretsRoutes.get(key)
         const queryParams: Record<string, unknown> = {}
 

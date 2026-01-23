@@ -80,7 +80,7 @@ export interface ErrorResponse {
     severity: ErrorSeverity;
     timestamp: string;
     requestId?: string | undefined;
-    metadata?: Record<string, any> | undefined;
+    metadata?: Record<string, unknown> | undefined;
     cause?: Error | undefined;
 }
 
@@ -92,7 +92,7 @@ export interface HttpErrorResponse {
     statusText: string;
     message?: string;
     code?: string;
-    details?: any;
+    details?: unknown;
 }
 
 /**
@@ -101,5 +101,5 @@ export interface HttpErrorResponse {
 export interface ValidationErrorDetail {
     field: string;
     message: string;
-    value?: any;
+    value?: unknown;
 }

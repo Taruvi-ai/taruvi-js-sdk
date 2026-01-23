@@ -43,7 +43,7 @@ export class HttpClient {
         return data
     }
 
-    async post<T, D = any>(endpoint: string, body: D): Promise<T> {
+    async post<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         const isFormData = body instanceof FormData
         const { data } = await axios.post<T>(
             `${this.config.apiUrl}/${endpoint}`,
@@ -55,7 +55,7 @@ export class HttpClient {
         return data
     }
 
-    async put<T, D = any>(endpoint: string, body: D) {
+    async put<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         const isFormData = body instanceof FormData
         const { data } = await axios.put<T>(`${this.config.apiUrl}/${endpoint}`,
             body,
@@ -66,7 +66,7 @@ export class HttpClient {
         return data
     }
 
-    async delete<T, D = any>(endpoint: string, body?: D): Promise<T> {
+    async delete<T, D = unknown>(endpoint: string, body?: D): Promise<T> {
         const { data } = await axios.delete<T>(
             `${this.config.apiUrl}/${endpoint}`,
             {
@@ -77,7 +77,7 @@ export class HttpClient {
         return data
     }
 
-    async patch<T, D = any>(endpoint: string, body: D): Promise<T> {
+    async patch<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         const isFormData = body instanceof FormData
         const { data } = await axios.patch<T>(
             `${this.config.apiUrl}/${endpoint}`,

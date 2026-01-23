@@ -1,5 +1,11 @@
 import type { Client } from "../../client.js";
-import type { BucketUrlParams } from "./types.js";
+import type {
+    BucketUrlParams,
+    StorageResponse,
+    StorageListResponse,
+    StorageUploadBatchResponse,
+    StorageDeleteBatchResponse
+} from "./types.js";
 import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
 import type { TaruviConfig, StorageFilters } from "../../types.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
@@ -36,7 +42,7 @@ export class Storage {
     delete(paths: string[]): Storage {
         return new Storage(this.client, {
             ...this.urlParams, delete: "delete"
-        } as any, HttpMethod.POST, { paths })
+        }, HttpMethod.POST, { paths })
     }
 
     update(path: string, body: object): Storage {
@@ -58,8 +64,12 @@ export class Storage {
     }
 
     private buildRoute(): string {
+        if (!this.urlParams.bucket) {
+            throw new Error('Bucket is required. Call .from(bucketName) first.')
+        }
+
         return (
-            StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket!) +
+            StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket) +
             (Object.keys(this.urlParams) as StorageRouteKey[]).reduce((acc, key) => {
                 const value = this.urlParams[key as keyof BucketUrlParams]
 
@@ -82,24 +92,32 @@ export class Storage {
 
 
 
-    async execute(): Promise<any> {
+    /**
+     * Execute the storage operation.
+     * Returns different types based on the operation:
+     * - List files: StorageListResponse[]
+     * - Download: Blob
+     * - Upload: StorageUploadBatchResponse
+     * - Delete: StorageDeleteBatchResponse
+     * - Update: StorageResponse
+     */
+    async execute<T = StorageListResponse[] | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob>(): Promise<T> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 
-
         switch (operation) {
             case HttpMethod.POST:
-                return await this.client.httpClient.post(url, this.body)
+                return await this.client.httpClient.post<T>(url, this.body)
 
             case HttpMethod.PUT:
-                return await this.client.httpClient.put(url, this.body)
+                return await this.client.httpClient.put<T>(url, this.body)
 
             case HttpMethod.DELETE:
-                return await this.client.httpClient.delete(url)
+                return await this.client.httpClient.delete<T>(url)
 
             case HttpMethod.GET:
             default:
-                return await this.client.httpClient.get(url)
+                return await this.client.httpClient.get<T>(url)
         }
     }
 }

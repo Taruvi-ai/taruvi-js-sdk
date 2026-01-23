@@ -4,6 +4,7 @@
   "description": "Taruvi SDK",
   "main": "src/index.ts",
   "type": "module",
+  "sideEffects": false,
   "scripts": {
     "build": "tsc"
   },

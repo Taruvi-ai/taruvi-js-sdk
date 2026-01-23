@@ -1,5 +1,5 @@
 import { HttpClient } from "./lib-internal/http/HttpClient.js";
-import { TokenClient } from "./lib-internal/token/TokenClient.js";
+import { TokenClient, type AuthTokens } from "./lib-internal/token/TokenClient.js";
 import type { TaruviConfig } from "./types.js";
 
 export class Client {
@@ -62,7 +62,7 @@ export class Client {
         }
 
         // Store tokens using TokenClient
-        const tokens: any = {
+        const tokens: AuthTokens = {
             accessToken,
             refreshToken,
             tokenType: tokenType || "Bearer"
