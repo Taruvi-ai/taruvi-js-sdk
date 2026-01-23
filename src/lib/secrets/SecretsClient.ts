@@ -35,14 +35,14 @@ export class Secrets {
     }
 
     /**
-     * Get multiple secrets by keys using backend batch endpoint.
+     * List multiple secrets by keys using backend batch endpoint.
      * More efficient than making multiple individual requests - uses a single API call.
      *
      * @param keys - List of secret keys to retrieve
      * @param options - Optional app context and metadata flag
      * @returns Promise with dict mapping keys to values (or full objects if includeMetadata=true)
      */
-    async getSecrets(keys: string[], options: GetSecretsOptions = {}): Promise<SecretsBatchResponse | SecretsBatchMetadataResponse> {
+    async list(keys: string[], options: GetSecretsOptions = {}): Promise<SecretsBatchResponse | SecretsBatchMetadataResponse> {
         const queryParams: Record<string, unknown> = {
             keys: keys.join(',')
         }

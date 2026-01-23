@@ -3,7 +3,7 @@ import { MimeTypeCategory, Visibility } from './utils/enums.js'
 export interface TaruviConfig {
     apiKey: string      // Identifies which site the client belongs to
     appSlug: string     // Identifies which app the client belongs to
-    baseUrl: string
+    apiUrl: string      // Base API URL
     deskUrl?: string    // URL for the desk/login page
     token?: string      // Optional: Pre-existing auth token
 }

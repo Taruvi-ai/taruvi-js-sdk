@@ -37,7 +37,7 @@ export class HttpClient {
     }
 
     async get<T>(endpoint: string): Promise<T> {
-        const { data } = await axios.get<T>(`${this.config.baseUrl}/${endpoint}`, {
+        const { data } = await axios.get<T>(`${this.config.apiUrl}/${endpoint}`, {
             headers: this.getAuthHeaders()
         })
         return data
@@ -46,7 +46,7 @@ export class HttpClient {
     async post<T, D = any>(endpoint: string, body: D): Promise<T> {
         const isFormData = body instanceof FormData
         const { data } = await axios.post<T>(
-            `${this.config.baseUrl}/${endpoint}`,
+            `${this.config.apiUrl}/${endpoint}`,
             body,
             {
                 headers: this.getAuthHeaders(isFormData)
@@ -57,7 +57,7 @@ export class HttpClient {
 
     async put<T, D = any>(endpoint: string, body: D) {
         const isFormData = body instanceof FormData
-        const { data } = await axios.put<T>(`${this.config.baseUrl}/${endpoint}`,
+        const { data } = await axios.put<T>(`${this.config.apiUrl}/${endpoint}`,
             body,
             {
                 headers: this.getAuthHeaders(isFormData)
@@ -68,7 +68,7 @@ export class HttpClient {
 
     async delete<T, D = any>(endpoint: string, body?: D): Promise<T> {
         const { data } = await axios.delete<T>(
-            `${this.config.baseUrl}/${endpoint}`,
+            `${this.config.apiUrl}/${endpoint}`,
             {
                 headers: this.getAuthHeaders(),
                 data: body
@@ -80,7 +80,7 @@ export class HttpClient {
     async patch<T, D = any>(endpoint: string, body: D): Promise<T> {
         const isFormData = body instanceof FormData
         const { data } = await axios.patch<T>(
-            `${this.config.baseUrl}/${endpoint}`,
+            `${this.config.apiUrl}/${endpoint}`,
             body,
             {
                 headers: this.getAuthHeaders(isFormData)

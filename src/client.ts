@@ -16,8 +16,8 @@ export class Client {
             throw new Error("API key is required")
         }
 
-        if (!config.baseUrl) {
-            throw new Error("Base URL is required")
+        if (!config.apiUrl) {
+            throw new Error("API URL is required")
         }
 
         this.config = config

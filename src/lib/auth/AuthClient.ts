@@ -1,4 +1,6 @@
 import type { Client } from "../../client.js";
+import type { UserDataResponse } from "./types.js";
+import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 
 /**
  * Auth Client - Handles user authentication using Web UI Flow
@@ -29,7 +31,7 @@ export class Auth {
 
         const config = this.client.getConfig()
         const callback = callbackUrl || window.location.origin + window.location.pathname
-        const deskUrl = config.deskUrl || config.baseUrl
+        const deskUrl = config.deskUrl || config.apiUrl
 
         // Redirect to /accounts/login/ with redirect_to parameter
         const loginUrl = `${deskUrl}/accounts/login/?redirect_to=${encodeURIComponent(callback)}`
@@ -59,7 +61,7 @@ export class Auth {
         const callback = callbackUrl || window.location.origin + window.location.pathname
 
         // Redirect to /accounts/signup/ with redirect_to parameter
-        const signupUrl = `${config.baseUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
+        const signupUrl = `${config.apiUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
 
         // Optional: Store state before redirecting
         if (typeof sessionStorage !== "undefined") {
@@ -87,7 +89,7 @@ export class Auth {
         this.client.tokenClient.clearTokens()
 
         const config = this.client.getConfig()
-        const deskUrl = config.deskUrl || config.baseUrl
+        const deskUrl = config.deskUrl || config.apiUrl
         let callback: string = callbackUrl || ""
 
         // If no callback provided, fetch frontendUrl from site settings
@@ -154,7 +156,7 @@ export class Auth {
 
         try {
             const config = this.client.getConfig()
-            const response = await fetch(`${config.baseUrl}/api/cloud/auth/jwt/token/refresh/`, {
+            const response = await fetch(`${config.apiUrl}/api/cloud/auth/jwt/token/refresh/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ refresh: refreshToken })
@@ -193,26 +195,18 @@ export class Auth {
     }
 
     /**
-     * Get current user info from access token (JWT decode)
-     * Note: This only decodes the token, doesn't validate signature
+     * Get current user from API
+     * @returns Promise with user data or null if not authenticated
      */
-    getCurrentUser(): any | null {
-        const accessToken = this.getAccessToken()
-
-        if (!accessToken) {
+    async getCurrentUser(): Promise<UserDataResponse | null> {
+        if (!this.isUserAuthenticated()) {
             return null
         }
 
         try {
-            // Decode JWT (middle part is payload)
-            const parts = accessToken.split(".")
-            if (parts.length !== 3 || !parts[1]) {
-                throw new Error("Invalid JWT format")
-            }
-            const payload = JSON.parse(atob(parts[1]))
-            return payload
+            return await this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser())
         } catch (error) {
-            console.error("Failed to decode access token:", error)
+            console.error("Failed to fetch current user:", error)
             return null
         }
     }

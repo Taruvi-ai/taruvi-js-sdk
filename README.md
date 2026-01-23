@@ -32,7 +32,7 @@ import { Client } from '@taruvi/sdk'
 const taruviClient = new Client({
   apiKey: "your-site-api-key",
   appSlug: "your-app-slug", 
-  baseUrl: "https://taruvi-site.taruvi.cloud"
+  apiUrl: "https://taruvi-site.taruvi.cloud"
 })
 ```
 
@@ -1141,7 +1141,7 @@ import type {
 const config: TaruviConfig = {
   apiKey: "key",
   appSlug: "app",
-  baseUrl: "https://api.taruvi.cloud",
+  apiUrl: "https://api.taruvi.cloud",
   deskUrl: "https://desk.taruvi.cloud", // optional
   token: "existing-token" // optional
 }
@@ -1305,14 +1305,14 @@ await storage.from("bucket").download("path/to/file.pdf").execute()
 ```env
 VITE_TARUVI_API_KEY=your-api-key
 VITE_TARUVI_APP_SLUG=your-app
-VITE_TARUVI_BASE_URL=https://taruvi-site.taruvi.cloud
+VITE_TARUVI_API_URL=https://taruvi-site.taruvi.cloud
 ```
 
 ```typescript
 const client = new Client({
   apiKey: import.meta.env.VITE_TARUVI_API_KEY,
   appSlug: import.meta.env.VITE_TARUVI_APP_SLUG,
-  baseUrl: import.meta.env.VITE_TARUVI_BASE_URL
+  apiUrl: import.meta.env.VITE_TARUVI_API_URL
 })
 ```
 

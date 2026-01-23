@@ -67,7 +67,8 @@ export class Policy {
 
         // Extract allowed actions
         if (result.results && result.results.length > 0) {
-            const actionResults = result.results[0].actions || {}
+            const firstResult = result.results[0]
+            const actionResults = firstResult?.actions || {}
             return Object.entries(actionResults)
                 .filter(([_, effect]) => effect === 'EFFECT_ALLOW')
                 .map(([action, _]) => action)
