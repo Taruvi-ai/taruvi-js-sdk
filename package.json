@@ -6,7 +6,9 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "taruvi",
@@ -17,7 +19,10 @@
   "license": "MIT",
   "peerDependencies": {
     "@types/node": ">=18 <25",
-    "typescript": ">=5.7 <6",
-    "axios": ">=1 <2"
+    "axios": ">=1 <2",
+    "typescript": ">=5.7 <6"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }
