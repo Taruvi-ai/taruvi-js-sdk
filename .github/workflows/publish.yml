@@ -1,0 +1,37 @@
+name: Publish to NPM
+
+on:
+  push:
+    branches: [master, dev]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set environment
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "ENV_SLUG=taruvi-test" >> $GITHUB_ENV
+          else
+            echo "ENV_SLUG=taruvi-test" >> $GITHUB_ENV
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Get secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.7
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          env-slug: ${{ env.ENV_SLUG }}
+          project-slug: taruvi-qmc-d 
+          domain: "https://environment.eoxvantage.com"
+      - run: npm install
+      - run: npm run build
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+      
+
