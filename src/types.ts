@@ -8,6 +8,25 @@ export interface TaruviConfig {
     token?: string      // Optional: Pre-existing auth token
 }
 
+// Standard response wrapper matching backend AppDataResponse
+export interface TaruviResponse<T = unknown> {
+    status: "success" | "error"
+    message: string
+    data: T
+    total?: number
+    pagination?: PaginationInfo
+}
+
+export interface PaginationInfo {
+    offset: number
+    limit: number
+    count: number
+    current_page: number
+    total_pages: number
+    has_next: boolean
+    has_previous: boolean
+}
+
 export interface StorageFilters {
     // Pagination (DRF style)
     page?: number

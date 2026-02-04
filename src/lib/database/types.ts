@@ -1,5 +1,6 @@
 import type { Client } from "../../client.js"
 import { HttpMethod } from "../../lib-internal/http/types.js"
+import type { TaruviResponse } from "../../types.js"
 
 export type DatabaseOperation = HttpMethod
 
@@ -40,10 +41,6 @@ export interface DatabaseRequest {
     [key: string]: unknown
 }
 
-// Response types
-export interface DatabaseResponse<T = unknown> {
-    id?: string | number
-    created_at?: string
-    updated_at?: string
-    [key: string]: T | string | number | undefined
-}
+// Response types - uses standard wrapper
+export type DatabaseResponse<T = unknown> = TaruviResponse<T[]>
+export type DatabaseSingleResponse<T = unknown> = TaruviResponse<T>

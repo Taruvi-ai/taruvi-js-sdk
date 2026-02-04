@@ -1,5 +1,6 @@
 import type { Client } from "../../client.js"
 import { HttpMethod } from "../../lib-internal/http/types.js"
+import type { TaruviResponse } from "../../types.js"
 
 export type AppOperation = HttpMethod
 
@@ -15,17 +16,19 @@ export interface AppClientInterface {
     urlParams?: UrlParams
 }
 
-// Response types
-export interface RoleResponse {
-    id?: string | number
-    name?: string
+// Role data
+export interface RoleData {
+    id: string | number
+    name: string
+    slug: string
+    description?: string
     permissions?: string[]
     created_at?: string
     updated_at?: string
-    [key: string]: unknown
 }
 
-export interface SettingsResponse {
+// App settings data
+export interface AppSettingsData {
     display_name: string
     icon: string | null
     icon_url: string | null
@@ -40,3 +43,8 @@ export interface SettingsResponse {
     created_at: string
     updated_at: string
 }
+
+// Response types - uses standard wrapper
+export type RoleResponse = TaruviResponse<RoleData>
+export type RolesListResponse = TaruviResponse<RoleData[]>
+export type AppSettingsResponse = TaruviResponse<AppSettingsData>

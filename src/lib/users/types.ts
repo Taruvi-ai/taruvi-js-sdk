@@ -1,44 +1,34 @@
+import type { TaruviResponse } from "../../types.js"
+
 export interface UserCreateRequest {
-    // Required fields
     username: string
     email: string
-    first_name: string
-    last_name: string
     password: string
     confirm_password: string
-    // Optional fields
+    first_name: string
+    last_name: string
     is_active?: boolean
     is_staff?: boolean
-    attributes?: string
+    is_cloud_user?: boolean
+    attributes?: Record<string, unknown>
+    role_slugs?: string[]
 }
 
-export interface UserCreateResponse {
+export interface UserData {
     id: number
-    uuid: string
+    uuid?: string
     username: string
     email: string
     first_name: string
     last_name: string
+    full_name?: string
     is_active: boolean
     is_staff: boolean
-    is_superuser: boolean
+    is_superuser?: boolean
     is_deleted: boolean
     date_joined: string
-}
-
-export interface UserDataResponse {
-    id: number,
-    username: string,
-    email: string,
-    first_name: string,
-    last_name: string,
-    full_name: string,
-    is_active: boolean,
-    is_staff: boolean,
-    is_deleted: boolean,
-    date_joined: string, // ISO 8601 date-time string
-    last_login: string, // ISO 8601 date-time string
-    attributes: string
+    last_login?: string
+    attributes?: Record<string, unknown>
 }
 
 export interface UserUpdateRequest {
@@ -50,29 +40,15 @@ export interface UserUpdateRequest {
     is_staff?: boolean
 }
 
-export interface UserUpdateResponse {
-    id: number
-    uuid: string
-    username: string
-    email: string
-    first_name: string
-    last_name: string
-    is_active: boolean
-    is_staff: boolean
-    is_superuser: boolean
-    is_deleted: boolean
-    date_joined: string
-}
-
-export interface UserList {
-    search: string
-    is_active: boolean
-    is_staff: boolean
-    is_superuser: boolean
-    is_deleted: boolean
-    ordering: string
-    page: Number
-    page_size: Number
+export interface UserListFilters {
+    search?: string
+    is_active?: boolean
+    is_staff?: boolean
+    is_superuser?: boolean
+    is_deleted?: boolean
+    ordering?: string
+    page?: number
+    page_size?: number
 }
 
 export interface UserApp {
@@ -83,7 +59,10 @@ export interface UserApp {
     display_name: string
 }
 
-export type UserAppsResponse = UserApp[]
+// Response types - uses standard wrapper
+export type UserResponse = TaruviResponse<UserData>
+export type UserListResponse = TaruviResponse<UserData[]>
+export type UserAppsResponse = TaruviResponse<UserApp[]>
 
 export interface AssignRolesRequest {
     roles: string[]
@@ -96,7 +75,6 @@ export interface RevokeRolesRequest {
     usernames: string[]
 }
 
-export interface RolesResponse {
-    message: string
+export type RolesResponse = TaruviResponse<{
     count: number
-}
+}>

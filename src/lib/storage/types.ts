@@ -1,3 +1,5 @@
+import type { TaruviResponse } from "../../types.js"
+
 // Internal types - all optional since they're built incrementally via builder pattern
 export interface BucketUrlParams {
     appSlug?: string
@@ -25,8 +27,8 @@ export interface StorageUpdateRequest {
     visibility?: 'public' | 'private'
 }
 
-// Response types - matches StorageObjectSerializer from API
-export interface StorageResponse {
+// Storage object - matches StorageObjectSerializer from API
+export interface StorageObject {
     id: number
     uuid: string
     bucket?: number
@@ -45,49 +47,40 @@ export interface StorageResponse {
     modified_by?: number
 }
 
-// List response - matches StorageObjectListSerializer (subset of fields)
-export interface StorageListResponse {
-    id: string
-    uuid: string
-    filename: string
-    file_path: string
-    file_url: string
-    size: number
-    mimetype: string
-    created_at: string
-    updated_at: string
-}
+// Response types - uses standard wrapper
+export type StorageResponse = TaruviResponse<StorageObject>
+export type StorageListResponse = TaruviResponse<StorageObject[]>
 
 // Batch upload response
 export interface StorageUploadBatchResponse {
-    uploaded_count: number
-    failed_count: number
-    total: number
+    status: "success" | "error"
     message: string
-    successful: Array<{
-        index: number
-        path: string
-        object: StorageResponse
-    }>
-    failed: Array<{
-        index: number
-        path: string
-        error: string
-    }>
+    data: {
+        uploaded_count: number
+        failed_count: number
+        total: number
+        successful: Array<{
+            index: number
+            path: string
+            object: StorageObject
+        }>
+        failed: Array<{
+            index: number
+            path: string
+            error: string
+        }>
+    }
 }
 
 // Batch delete response
 export interface StorageDeleteBatchResponse {
-    deleted_count: number
+    status: "success" | "error"
     message: string
-    failed: Array<{
-        path: string
-        error: string
-    }>
-}
-
-// Single delete response
-export interface StorageDeleteResponse {
-    message: string
-    success: boolean
+    data: {
+        deleted_count: number
+        failed: Array<{
+            path: string
+            error: string
+        }>
+    }
 }

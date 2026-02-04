@@ -1,3 +1,5 @@
+import type { TaruviResponse } from "../../types.js"
+
 export interface Principal {
     id: string
     roles: string[]
@@ -8,7 +10,7 @@ export type Resource = {
     kind: string
     id: string
     attr: Record<string, unknown>
-};
+}
 
 export type Resources = {
     entityType: string
@@ -18,17 +20,12 @@ export type Resources = {
     actions: string[]
 }[]
 
-export type ResourceCheckResponse = {
-    allowed: boolean
-    reason: string
-}
-
-export type PolicyCheckResult = {
+export interface PolicyCheckResult {
     resource: Resource
     actions: Record<string, string>
 }
 
-export type PolicyCheckBatchResult = {
+export interface PolicyCheckBatchResult {
     requestId: string
     results: PolicyCheckResult[]
 }
@@ -38,3 +35,6 @@ export type GetAllowedActionsOptions = {
     principal?: Principal
     auxData?: Record<string, unknown>
 }
+
+// Response types - uses standard wrapper
+export type ResourceCheckResponse = TaruviResponse<PolicyCheckBatchResult>
