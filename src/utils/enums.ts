@@ -14,3 +14,11 @@ export const Visibility = {
 } as const
 
 export type Visibility = typeof Visibility[keyof typeof Visibility]
+
+
+export const QueryParams = {
+    include: "include",
+    depth: "depth",
+    format: "format",
+    graph_type: "graph_type",
+}

@@ -12,6 +12,7 @@ export { Secrets } from "./lib/Secrets/SecretsClient.js"
 export { Policy } from "./lib/Policy/PolicyClient.js"
 export { App } from "./lib/App/AppClient.js"
 export { Analytics } from "./lib/Analytics/AnalyticsClient.js"
+export { Graph } from "./lib/Graphs/GraphClient.js"
 
 // Export types
 export type { TaruviConfig, StorageFilters, DatabaseFilters } from "./types.js"
@@ -37,3 +38,4 @@ export type { StorageRequest, StorageUpdateRequest, StorageResponse } from "./li
 export type { SettingsResponse } from "./lib/Settings/types.js"
 export type { SecretRequest, SecretResponse } from "./lib/Secrets/types.js"
 export type { AnalyticsRequest, AnalyticsResponse } from "./lib/Analytics/types.js"
+export type { GraphInclude, GraphFormat, GraphQueryParams, EdgeRequest, EdgeResponse } from "./lib/Graphs/types.js"
