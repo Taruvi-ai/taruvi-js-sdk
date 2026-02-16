@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Secrets } from '../../../src/lib/secrets/SecretsClient.js'
 import { Client } from '../../../src/client.js'
+import type { SecretResponse, SecretsListResponse } from '../../../src/lib/secrets/types.js'
 
 const mockHttpClient = {
     get: vi.fn(),
@@ -107,6 +108,39 @@ describe('Secrets', () => {
             await secrets.execute()
 
             expect(mockHttpClient.get).toHaveBeenCalled()
+        })
+    })
+
+    describe('response handling', () => {
+        it('returns single secret matching SecretResponse type', async () => {
+            const mockResponse: SecretResponse = {
+                status: 'success',
+                message: 'Secret retrieved successfully',
+                data: { key: 'MY_SECRET', value: 'secret-value', tags: ['prod'], secret_type: 'string' }
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Secrets(mockClient).get('MY_SECRET').execute() as SecretResponse
+            expect(result.status).toBe('success')
+            expect(result.data.key).toBe('MY_SECRET')
+            expect(result.data.value).toBe('secret-value')
+            expect(result.data.tags).toContain('prod')
+        })
+
+        it('returns secrets list matching SecretsListResponse type', async () => {
+            const mockResponse: SecretsListResponse = {
+                status: 'success',
+                message: 'Retrieved 2 secret(s)',
+                data: [
+                    { key: 'KEY1', value: 'val1' },
+                    { key: 'KEY2', value: 'val2' }
+                ],
+                total: 2
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Secrets(mockClient).list(['KEY1', 'KEY2']) as SecretsListResponse
+            expect(result.data).toHaveLength(2)
+            expect(result.data[0].key).toBe('KEY1')
+            expect(result.total).toBe(2)
         })
     })
 })

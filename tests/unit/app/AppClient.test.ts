@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { App } from '../../../src/lib/app/AppClient.js'
 import { Client } from '../../../src/client.js'
+import type { RolesListResponse, AppSettingsResponse } from '../../../src/lib/app/types.js'
 
 const mockHttpClient = {
     get: vi.fn()
@@ -76,6 +77,38 @@ describe('App', () => {
             expect(mockHttpClient.get).toHaveBeenCalledWith(
                 expect.stringContaining('api/apps/test-app')
             )
+        })
+    })
+
+    describe('response handling', () => {
+        it('returns roles list matching RolesListResponse type', async () => {
+            const mockResponse: RolesListResponse = {
+                status: 'success',
+                message: 'Data retrieved successfully',
+                data: [
+                    { id: '1', name: 'Admin', slug: 'admin', description: 'Admin role', is_default: false, created_at: '2024-01-01', updated_at: '2024-01-01' },
+                    { id: '2', name: 'Editor', slug: 'editor', description: 'Editor role', is_default: false, created_at: '2024-01-01', updated_at: '2024-01-01' }
+                ],
+                total: 2
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new App(mockClient).roles().execute() as RolesListResponse
+            expect(result.status).toBe('success')
+            expect(result.data).toHaveLength(2)
+            expect(result.data[0].name).toBe('Admin')
+            expect(result.total).toBe(2)
+        })
+
+        it('returns settings matching AppSettingsResponse type', async () => {
+            const mockResponse: AppSettingsResponse = {
+                status: 'success',
+                message: 'Settings retrieved successfully',
+                data: { name: 'My App', slug: 'my-app', description: 'Test app', is_active: true, documentation_url: null, support_email: null, default_frontend_worker_url: null, created_at: '2024-01-01', updated_at: '2024-01-01' }
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new App(mockClient).settings().execute() as AppSettingsResponse
+            expect(result.data.name).toBe('My App')
+            expect(result.data.is_active).toBe(true)
         })
     })
 })

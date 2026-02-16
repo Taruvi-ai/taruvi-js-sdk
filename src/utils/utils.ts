@@ -25,7 +25,11 @@ export function buildQueryString(queryParams: Record<string, unknown> | undefine
     const params = new URLSearchParams()
     Object.entries(queryParams).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-            params.append(key, String(value))
+            if (Array.isArray(value)) {
+                value.forEach((v) => params.append(key, String(v)))
+            } else {
+                params.append(key, String(value))
+            }
         }
     })
     const queryString = params.toString()

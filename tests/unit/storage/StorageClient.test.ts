@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Storage } from '../../../src/lib/storage/StorageClient.js'
 import { Client } from '../../../src/client.js'
+import type { StorageResponse, StorageListResponse, StorageDeleteBatchResponse } from '../../../src/lib/storage/types.js'
 
 const mockHttpClient = {
     get: vi.fn(),
@@ -186,6 +187,65 @@ describe('Storage', () => {
             expect(url).toContain('search=test')
             expect(url).toContain('page=1')
             expect(url).toContain('ordering=-created_at')
+        })
+    })
+
+    describe('response handling', () => {
+        it('returns list response matching StorageListResponse type', async () => {
+            const mockResponse: StorageListResponse = {
+                status: 'success',
+                message: 'Objects retrieved successfully',
+                data: [{ id: 1, file: 'doc.pdf', path: 'doc.pdf', size: 1024, mimetype: 'application/pdf', created_at: '2024-01-01', updated_at: '2024-01-01' }],
+                total: 1
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').execute() as StorageListResponse
+            expect(result.status).toBe('success')
+            expect(result.data).toHaveLength(1)
+            expect(result.data[0].mimetype).toBe('application/pdf')
+            expect(result.total).toBe(1)
+        })
+
+        it('returns upload response matching StorageResponse type', async () => {
+            const mockResponse: StorageResponse = {
+                status: 'success',
+                message: 'Object created successfully',
+                data: { id: 1, file: 'doc.pdf', path: 'doc.pdf', size: 2048, mimetype: 'application/pdf', created_at: '2024-01-01', updated_at: '2024-01-01' }
+            }
+            mockHttpClient.post.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').upload({ files: [], metadatas: [], paths: ['doc.pdf'] }).execute() as StorageResponse
+            expect(result.data.file).toBe('doc.pdf')
+            expect(result.data.size).toBe(2048)
+        })
+
+        it('returns download response as blob', async () => {
+            const mockBlob = new Blob(['content'])
+            mockHttpClient.get.mockResolvedValue(mockBlob)
+            const result = await new Storage(mockClient).from('documents').download('doc.pdf').execute()
+            expect(result).toBeInstanceOf(Blob)
+        })
+
+        it('returns delete response matching StorageDeleteBatchResponse type', async () => {
+            const mockResponse: StorageDeleteBatchResponse = {
+                status: 'success',
+                message: 'Objects deleted successfully',
+                data: { deleted_count: 1, failed: [] }
+            }
+            mockHttpClient.post.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').delete(['doc.pdf']).execute() as StorageDeleteBatchResponse
+            expect(result.status).toBe('success')
+            expect(result.data.deleted_count).toBe(1)
+        })
+
+        it('returns update metadata response', async () => {
+            const mockResponse: StorageResponse = {
+                status: 'success',
+                message: 'Object metadata updated successfully',
+                data: { id: 1, file: 'doc.pdf', path: 'doc.pdf', size: 1024, mimetype: 'application/pdf', visibility: 'public', created_at: '2024-01-01', updated_at: '2024-01-01' }
+            }
+            mockHttpClient.put.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').update('doc.pdf', { visibility: 'public' }).execute() as StorageResponse
+            expect(result.data.visibility).toBe('public')
         })
     })
 })

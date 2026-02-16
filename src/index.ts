@@ -46,4 +46,4 @@ export type { SecretCreateRequest, SecretUpdateRequest, SecretData, SecretRespon
 export type { AnalyticsRequest, AnalyticsResponse } from "./lib/analytics/types.js"
 
 // Graph types
-export type { GraphInclude, GraphFormat, GraphQueryParams, EdgeRequest, EdgeResponse } from "./lib/graphs/types.js"
+export type { GraphInclude, GraphFormat, GraphQueryParams, EdgeRequest, EdgeResponse, EdgeDeleteRequest } from "./lib/graphs/types.js"

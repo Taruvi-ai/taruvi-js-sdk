@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Database } from '../../../src/lib/database/DatabaseClient.js'
 import { Client } from '../../../src/client.js'
+import type { DatabaseResponse, DatabaseSingleResponse } from '../../../src/lib/database/types.js'
 
 // Mock the Client
 const mockHttpClient = {
@@ -239,6 +240,65 @@ describe('Database', () => {
             expect(url).toContain('status=active')
             expect(url).toContain('page=1')
             expect(url).toContain('page_size=10')
+        })
+    })
+
+    describe('response handling', () => {
+        it('returns list response matching DatabaseResponse type', async () => {
+            const mockResponse: DatabaseResponse = {
+                status: 'success',
+                message: 'Data retrieved successfully',
+                data: [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }],
+                total: 2,
+                pagination: { offset: 0, limit: 20, count: 2, current_page: 1, total_pages: 1, has_next: false, has_previous: false }
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('accounts').execute() as DatabaseResponse
+            expect(result.status).toBe('success')
+            expect(result.data).toHaveLength(2)
+            expect(result.total).toBe(2)
+            expect(result.pagination!.current_page).toBe(1)
+        })
+
+        it('returns single record matching DatabaseSingleResponse type', async () => {
+            const mockResponse: DatabaseSingleResponse = {
+                status: 'success',
+                message: 'Record retrieved successfully',
+                data: { id: 1, name: 'Alice', email: 'alice@example.com' }
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('accounts').get('1').execute() as DatabaseSingleResponse
+            expect(result.data.id).toBe(1)
+            expect(result.data.name).toBe('Alice')
+        })
+
+        it('returns created record response', async () => {
+            const mockResponse: DatabaseSingleResponse = {
+                status: 'success',
+                message: 'Record created successfully',
+                data: { id: 3, name: 'Carol', status: 'active' }
+            }
+            mockHttpClient.post.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('accounts').create({ name: 'Carol', status: 'active' }).execute() as DatabaseSingleResponse
+            expect(result.data.id).toBe(3)
+        })
+
+        it('returns updated record response', async () => {
+            const mockResponse: DatabaseSingleResponse = {
+                status: 'success',
+                message: 'Record updated successfully',
+                data: { id: 1, name: 'Alice Updated' }
+            }
+            mockHttpClient.patch.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('accounts').get('1').update({ name: 'Alice Updated' }).execute() as DatabaseSingleResponse
+            expect(result.data.name).toBe('Alice Updated')
+        })
+
+        it('returns delete response', async () => {
+            const mockResponse = { status: 'success', message: 'Record deleted successfully' }
+            mockHttpClient.delete.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('accounts').delete('1').execute()
+            expect((result as any).status).toBe('success')
         })
     })
 })

@@ -5,7 +5,7 @@ export interface GraphQueryParams {
     include?: GraphInclude
     depth?: number
     format?: GraphFormat
-    graph_types?: string
+    relationship_type?: string[]
 }
 
 export interface GraphUrlParams {
@@ -14,13 +14,20 @@ export interface GraphUrlParams {
 }
 
 export interface EdgeRequest {
-    from_id: number
-    to_id: number
+    from: number | string
+    to: number | string
     type: string
     metadata?: Record<string, unknown>
 }
 
-export interface EdgeResponse extends EdgeRequest {
+export interface EdgeResponse {
     id: number
-    created_at?: string
+    from: number | string
+    to: number | string
+    type: string
+    metadata?: Record<string, unknown>
+}
+
+export interface EdgeDeleteRequest {
+    edge_ids: number[]
 }

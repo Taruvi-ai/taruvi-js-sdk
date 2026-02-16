@@ -1,6 +1,6 @@
 import type { Client } from "../../client.js"
 import type { TaruviConfig } from "../../types.js"
-import type { GraphInclude, GraphFormat, GraphQueryParams, GraphUrlParams, EdgeRequest, EdgeResponse } from "./types.js"
+import type { GraphInclude, GraphFormat, GraphQueryParams, GraphUrlParams, EdgeRequest, EdgeDeleteRequest } from "./types.js"
 import { GraphRoutes, GraphEdgeRoutes, type GraphRouteKey } from "../../lib-internal/routes/GraphRoutes.js"
 import { buildQueryString } from "../../utils/utils.js"
 import { HttpMethod } from "../../lib-internal/http/types.js"
@@ -45,7 +45,7 @@ export class Graph<T = Record<string, unknown>> {
     }
 
     types(types: string[]): Graph<T> {
-        return new Graph<T>(this.client, { ...this.urlParams }, { ...this.queryParams, graph_types: types.join(',') })
+        return new Graph<T>(this.client, { ...this.urlParams }, { ...this.queryParams, relationship_type: types })
     }
 
     listEdges(): Graph<T> {
@@ -53,9 +53,9 @@ export class Graph<T = Record<string, unknown>> {
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.GET, undefined, route)
     }
 
-    createEdge(edge: EdgeRequest): Graph<T> {
+    createEdge(edges: EdgeRequest[]): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + "/"
-        return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.POST, edge, route)
+        return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.POST, edges as unknown as object, route)
     }
 
     updateEdge(edgeId: string, edge: EdgeRequest): Graph<T> {
@@ -63,9 +63,10 @@ export class Graph<T = Record<string, unknown>> {
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.PATCH, edge, route)
     }
 
-    deleteEdge(edgeIds: string[]): Graph<T> {
+    deleteEdge(edgeIds: number[]): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + "/"
-        return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.DELETE, edgeIds, route)
+        const body: EdgeDeleteRequest = { edge_ids: edgeIds }
+        return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.DELETE, body, route)
     }
 
     private buildRoute(): string {
