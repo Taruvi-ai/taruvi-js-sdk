@@ -1,12 +1,13 @@
 import type { TaruviConfig } from "../../types.js";
 import type { TokenClient } from "../token/TokenClient.js";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
+import type { ErrorResponseBody } from "../errors/index.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
- * Automatically adds authentication headers:
- * - Authorization: API key for site/app identification
- * - X-Session-Token: User session token for authenticated requests
+ * Automatically adds authentication headers and converts
+ * error responses to typed SDK errors.
  *
  * @internal
  */
@@ -36,56 +37,93 @@ export class HttpClient {
         return headers
     }
 
+    private handleError(error: unknown): never {
+        if (error instanceof TaruviError) {
+            throw error
+        }
+
+        if (error instanceof AxiosError) {
+            if (error.response) {
+                const body = error.response.data as ErrorResponseBody | undefined
+                throw createErrorFromResponse(error.response.status, body)
+            }
+            // No response — network error
+            throw new NetworkError(error.message)
+        }
+
+        // Unknown error
+        throw error
+    }
+
     async get<T>(endpoint: string): Promise<T> {
-        const { data } = await axios.get<T>(`${this.config.apiUrl}/${endpoint}`, {
-            headers: this.getAuthHeaders()
-        })
-        return data
+        try {
+            const { data } = await axios.get<T>(`${this.config.apiUrl}/${endpoint}`, {
+                headers: this.getAuthHeaders()
+            })
+            return data
+        } catch (error) {
+            this.handleError(error)
+        }
     }
 
     async post<T, D = unknown>(endpoint: string, body: D): Promise<T> {
-        const isFormData = body instanceof FormData
-        const { data } = await axios.post<T>(
-            `${this.config.apiUrl}/${endpoint}`,
-            body,
-            {
-                headers: this.getAuthHeaders(isFormData)
-            }
-        )
-        return data
+        try {
+            const isFormData = body instanceof FormData
+            const { data } = await axios.post<T>(
+                `${this.config.apiUrl}/${endpoint}`,
+                body,
+                {
+                    headers: this.getAuthHeaders(isFormData)
+                }
+            )
+            return data
+        } catch (error) {
+            this.handleError(error)
+        }
     }
 
     async put<T, D = unknown>(endpoint: string, body: D): Promise<T> {
-        const isFormData = body instanceof FormData
-        const { data } = await axios.put<T>(`${this.config.apiUrl}/${endpoint}`,
-            body,
-            {
-                headers: this.getAuthHeaders(isFormData)
-            })
-
-        return data
+        try {
+            const isFormData = body instanceof FormData
+            const { data } = await axios.put<T>(`${this.config.apiUrl}/${endpoint}`,
+                body,
+                {
+                    headers: this.getAuthHeaders(isFormData)
+                })
+            return data
+        } catch (error) {
+            this.handleError(error)
+        }
     }
 
     async delete<T, D = unknown>(endpoint: string, body?: D): Promise<T> {
-        const { data } = await axios.delete<T>(
-            `${this.config.apiUrl}/${endpoint}`,
-            {
-                headers: this.getAuthHeaders(),
-                data: body
-            }
-        )
-        return data
+        try {
+            const { data } = await axios.delete<T>(
+                `${this.config.apiUrl}/${endpoint}`,
+                {
+                    headers: this.getAuthHeaders(),
+                    data: body
+                }
+            )
+            return data
+        } catch (error) {
+            this.handleError(error)
+        }
     }
 
     async patch<T, D = unknown>(endpoint: string, body: D): Promise<T> {
-        const isFormData = body instanceof FormData
-        const { data } = await axios.patch<T>(
-            `${this.config.apiUrl}/${endpoint}`,
-            body,
-            {
-                headers: this.getAuthHeaders(isFormData)
-            }
-        )
-        return data
+        try {
+            const isFormData = body instanceof FormData
+            const { data } = await axios.patch<T>(
+                `${this.config.apiUrl}/${endpoint}`,
+                body,
+                {
+                    headers: this.getAuthHeaders(isFormData)
+                }
+            )
+            return data
+        } catch (error) {
+            this.handleError(error)
+        }
     }
 }

@@ -1,25 +1,3 @@
-/**
- * Error handling module exports
- *
- * This module provides comprehensive error handling for the Taruvi SDK
- * including typed error classes, error codes, and utility functions.
- */
-
-// Export error client
-export { ErrorClient } from './ErrorClient.js';
-
-// TODO: Export all error classes when implemented
-// - TaruviError
-// - AuthError
-// - DatabaseError
-// - StorageError
-// - NetworkError
-// - ValidationError
-// - FunctionError
-
-// TODO: Export types when implemented
-// - ErrorCode
-// - ErrorSeverity
-// - ErrorResponse
-// - HttpErrorResponse
-// - ValidationErrorDetail
+export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, createErrorFromResponse } from './ErrorClient.js'
+export { ErrorCode } from './types.js'
+export type { ErrorResponseBody } from './types.js'

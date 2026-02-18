@@ -1,6 +1,11 @@
 // Export main client
 export { Client } from "./client.js"
 
+// Export error classes
+export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError } from "./lib-internal/errors/index.js"
+export { ErrorCode } from "./lib-internal/errors/index.js"
+export type { ErrorResponseBody } from "./lib-internal/errors/index.js"
+
 // Export public client classes
 export { Auth } from "./lib/auth/AuthClient.js"
 export { User } from "./lib/users/UserClient.js"
