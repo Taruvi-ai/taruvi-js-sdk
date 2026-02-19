@@ -1,7 +1,7 @@
 import type { Client } from "../../client.js";
 import { DatabaseRoutes, type DatabaseRouteKey } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
-import type { TaruviConfig, DatabaseFilters } from "../../types.js";
+import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
 import type { UrlParams, FilterOperator, SortOrder } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -83,19 +83,20 @@ export class Database<T = Record<string, unknown>> {
     }
 
     async first(): Promise<T | null> {
-        const results = await this.execute()
-        if (Array.isArray(results)) {
-            return results[0] ?? null
+        const response = await this.execute()
+        const data = response.data
+        if (Array.isArray(data)) {
+            return data[0] ?? null
         }
-        return results ?? null
+        return data ?? null
     }
 
     async count(): Promise<number> {
-        const results = await this.execute()
-        if (Array.isArray(results)) {
-            return results.length
+        const response = await this.execute()
+        if (response.total !== undefined) {
+            return response.total
         }
-        return 0
+        return Array.isArray(response.data) ? response.data.length : 0
     }
 
     private buildRoute(): string {
@@ -116,7 +117,7 @@ export class Database<T = Record<string, unknown>> {
         )
     }
 
-    async execute(): Promise<T | T[]> {
+    async execute(): Promise<TaruviResponse<T | T[]>> {
         if (!this.urlParams.dataTables) {
             throw new Error('Table name is required. Call .from(tableName) first.')
         }

@@ -28,7 +28,31 @@ export interface UserData {
     is_deleted: boolean
     date_joined: string
     last_login?: string
+    groups?: UserGroup[]
+    user_permissions?: UserPermission[]
     attributes?: Record<string, unknown>
+    missing_attributes?: string[]
+    roles?: UserRole[]
+}
+
+export interface UserGroup {
+    id: number
+    name: string
+}
+
+export interface UserPermission {
+    id: number
+    name: string
+    codename: string
+    content_type: string
+}
+
+export interface UserRole {
+    name: string
+    slug: string
+    type: string
+    app_slug: string
+    source: "direct" | "site_role" | "inherited"
 }
 
 export interface UserUpdateRequest {

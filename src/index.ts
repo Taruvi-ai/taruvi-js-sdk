@@ -24,7 +24,7 @@ export type { TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, Data
 export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
 
 // User types
-export type { UserCreateRequest, UserData, UserUpdateRequest, UserListFilters, UserApp, UserResponse, UserListResponse, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse } from "./lib/users/types.js"
+export type { UserCreateRequest, UserData, UserUpdateRequest, UserListFilters, UserApp, UserResponse, UserListResponse, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse, UserGroup, UserPermission, UserRole } from "./lib/users/types.js"
 
 // Policy types
 export type { Principal, Resource, Resources, PolicyCheckResult, PolicyCheckBatchResult, ResourceCheckResponse } from "./lib/policy/types.js"

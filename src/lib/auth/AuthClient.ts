@@ -1,5 +1,6 @@
 import type { Client } from "../../client.js";
-import type { UserDataResponse } from "./types.js";
+import type { TaruviResponse } from "../../types.js";
+import type { UserData } from "../users/types.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 
 /**
@@ -198,13 +199,13 @@ export class Auth {
      * Get current user from API
      * @returns Promise with user data or null if not authenticated
      */
-    async getCurrentUser(): Promise<UserDataResponse | null> {
+    async getCurrentUser(): Promise<TaruviResponse<UserData> | null> {
         if (!this.isUserAuthenticated()) {
             return null
         }
 
         try {
-            return await this.client.httpClient.get<UserDataResponse>(UserRoutes.getCurrentUser())
+            return await this.client.httpClient.get<TaruviResponse<UserData>>(UserRoutes.getCurrentUser())
         } catch (error) {
             console.error("Failed to fetch current user:", error)
             return null

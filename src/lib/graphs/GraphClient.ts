@@ -48,22 +48,22 @@ export class Graph<T = Record<string, unknown>> {
         return new Graph<T>(this.client, { ...this.urlParams }, { ...this.queryParams, relationship_type: types })
     }
 
-    listEdges(): Graph<T> {
+    list(): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + "/"
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.GET, undefined, route)
     }
 
-    createEdge(edges: EdgeRequest[]): Graph<T> {
+    create(edges: EdgeRequest[]): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + "/"
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.POST, edges as unknown as object, route)
     }
 
-    updateEdge(edgeId: string, edge: EdgeRequest): Graph<T> {
+    update(edgeId: string, edge: EdgeRequest): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + GraphEdgeRoutes.edgeId(edgeId) + "/"
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.PATCH, edge, route)
     }
 
-    deleteEdge(edgeIds: number[]): Graph<T> {
+    delete(edgeIds: number[]): Graph<T> {
         const route = GraphEdgeRoutes.baseUrl(this.config.appSlug) + GraphEdgeRoutes.edges(this.urlParams.dataTables!) + "/"
         const body: EdgeDeleteRequest = { edge_ids: edgeIds }
         return new Graph<T>(this.client, { ...this.urlParams }, {}, HttpMethod.DELETE, body, route)
