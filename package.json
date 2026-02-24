@@ -1,6 +1,6 @@
 {
   "name": "@taruvi/sdk",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Taruvi SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

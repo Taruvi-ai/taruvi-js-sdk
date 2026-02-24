@@ -34,6 +34,14 @@ export class User {
         return await this.client.httpClient.get<UserAppsResponse>(UserRoutes.getUserApps(username))
     }
 
+    async getPreferences(): Promise<any> {
+        return await this.client.httpClient.get(UserRoutes.getPreferences())
+    }
+
+    async updatePreferences(body: Record<string, unknown>): Promise<any> {
+        return await this.client.httpClient.post(UserRoutes.getPreferences(), body)
+    }
+
     // - createUser
     async createUser(userData: UserCreateRequest): Promise<UserCreateResponse> {
         return await this.client.httpClient.post<UserCreateResponse, UserCreateRequest>(
