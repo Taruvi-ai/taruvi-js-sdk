@@ -19,15 +19,17 @@ export class Storage {
     private operation: HttpMethod | undefined
     private body: object | undefined
     private filters: StorageFilters | undefined
+    private queryParams: Record<string, string> | undefined
 
 
-    constructor(client: Client, urlParams: BucketUrlParams = {} as BucketUrlParams, operation?: HttpMethod | undefined, body?: object, filters?: StorageFilters) {
+    constructor(client: Client, urlParams: BucketUrlParams = {} as BucketUrlParams, operation?: HttpMethod | undefined, body?: object, filters?: StorageFilters, queryParams?: Record<string, string>) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
         this.config = this.client.getConfig()
         this.body = body
         this.filters = filters
+        this.queryParams = queryParams
     }
 
 
@@ -50,7 +52,7 @@ export class Storage {
     }
 
     download(path: string): Storage {
-        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, { metadata: 'true' } as unknown as StorageFilters)
+        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, undefined, { metadata: 'true' })
     }
 
     upload(filesData: { files: File[], metadatas: object[], paths: string[] }): Storage {
@@ -86,7 +88,7 @@ export class Storage {
                 return acc
             }, '') +
             '/' +
-            buildQueryString(this.filters as Record<string, unknown>)
+            buildQueryString({ ...this.filters as Record<string, unknown>, ...this.queryParams })
         )
     }
 
