@@ -50,7 +50,7 @@ export class Storage {
     }
 
     download(path: string): Storage {
-        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET)
+        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, { metadata: 'true' } as unknown as StorageFilters)
     }
 
     upload(filesData: { files: File[], metadatas: object[], paths: string[] }): Storage {
