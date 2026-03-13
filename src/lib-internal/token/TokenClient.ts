@@ -195,6 +195,22 @@ export class TokenClient {
     }
 
     /**
+     * Set access token directly (e.g., from external storage)
+     */
+    setAccessToken(token: string): void {
+        if (this.browserRunTime) {
+            if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+            try {
+                localStorage.setItem(TokenClient.ACCESS_TOKEN_KEY, token)
+            } catch (err) {
+                console.error('Failed to set access token:', err)
+            }
+        } else {
+            this.serverToken = token
+        }
+    }
+
+    /**
      * Update access token after refresh
      * ⚠️ IMPORTANT: Taruvi uses refresh token rotation
      * When you refresh, you get BOTH a new access token AND a new refresh token
