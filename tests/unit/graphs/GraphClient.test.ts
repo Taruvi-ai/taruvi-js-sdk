@@ -123,48 +123,48 @@ describe('Graph', () => {
     })
 
     describe('edge CRUD', () => {
-        it('listEdges() calls GET on edges route', async () => {
+        it('list() calls GET on edges route', async () => {
             mockHttpClient.get.mockResolvedValue({ edges: [], total: 0 })
-            await new Graph(mockClient).from('employees').listEdges().execute()
+            await new Graph(mockClient).from('employees').list().execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/datatables/employees/edges/')
         })
 
-        it('createEdge() calls POST with array of edges', async () => {
+        it('create() calls POST with array of edges', async () => {
             const edges = [
                 { from: 5, to: 2, type: 'manager' },
                 { from: 5, to: 3, type: 'dotted_line', metadata: { project: 'AI' } }
             ]
             mockHttpClient.post.mockResolvedValue({ status: 'success', data: edges, total: 2 })
-            await new Graph(mockClient).from('employees').createEdge(edges).execute()
+            await new Graph(mockClient).from('employees').create(edges).execute()
             expect(mockHttpClient.post).toHaveBeenCalledWith(
                 'api/apps/test-app/datatables/employees/edges/',
                 edges
             )
         })
 
-        it('createEdge() with metadata', async () => {
+        it('create() with metadata', async () => {
             const edges = [{ from: 5, to: 3, type: 'dotted_line', metadata: { percentage: 30 } }]
             mockHttpClient.post.mockResolvedValue({ status: 'success', data: edges, total: 1 })
-            await new Graph(mockClient).from('employees').createEdge(edges).execute()
+            await new Graph(mockClient).from('employees').create(edges).execute()
             expect(mockHttpClient.post).toHaveBeenCalledWith(
                 'api/apps/test-app/datatables/employees/edges/',
                 edges
             )
         })
 
-        it('updateEdge() calls PATCH with edge ID in URL', async () => {
+        it('update() calls PATCH with edge ID in URL', async () => {
             const edge = { from: 5, to: 3, type: 'dotted_line' }
             mockHttpClient.patch.mockResolvedValue({ id: 9, ...edge })
-            await new Graph(mockClient).from('employees').updateEdge('9', edge).execute()
+            await new Graph(mockClient).from('employees').update('9', edge).execute()
             expect(mockHttpClient.patch).toHaveBeenCalledWith(
                 'api/apps/test-app/datatables/employees/edges/9/',
                 edge
             )
         })
 
-        it('deleteEdge() calls DELETE with edge_ids object', async () => {
+        it('delete() calls DELETE with edge_ids object', async () => {
             mockHttpClient.delete.mockResolvedValue({ deleted: 2 })
-            await new Graph(mockClient).from('employees').deleteEdge([9, 10]).execute()
+            await new Graph(mockClient).from('employees').delete([9, 10]).execute()
             expect(mockHttpClient.delete).toHaveBeenCalledWith(
                 'api/apps/test-app/datatables/employees/edges/',
                 { edge_ids: [9, 10] }
@@ -290,7 +290,7 @@ describe('Graph', () => {
                 total: 2
             }
             mockHttpClient.get.mockResolvedValue(mockResponse)
-            const result = await new Graph(mockClient).from('employees').listEdges().execute()
+            const result = await new Graph(mockClient).from('employees').list().execute()
             expect((result as any).edges).toHaveLength(2)
             expect((result as any).edges[0].type).toBe('manager')
             expect((result as any).total).toBe(2)
@@ -306,7 +306,7 @@ describe('Graph', () => {
                 total: 1
             }
             mockHttpClient.post.mockResolvedValue(mockResponse)
-            const result = await new Graph(mockClient).from('employees').createEdge([{ from: 5, to: 2, type: 'manager' }]).execute() as TaruviResponse<EdgeResponse[]>
+            const result = await new Graph(mockClient).from('employees').create([{ from: 5, to: 2, type: 'manager' }]).execute() as TaruviResponse<EdgeResponse[]>
             expect(result.data).toHaveLength(1)
             expect(result.data[0].id).toBe(10)
         })
@@ -314,7 +314,7 @@ describe('Graph', () => {
         it('returns updated edge matching EdgeResponse type', async () => {
             const mockResponse: EdgeResponse = { id: 9, from: 5, to: 3, type: 'dotted_line', metadata: {} }
             mockHttpClient.patch.mockResolvedValue(mockResponse)
-            const result = await new Graph(mockClient).from('employees').updateEdge('9', { from: 5, to: 3, type: 'dotted_line' }).execute() as EdgeResponse
+            const result = await new Graph(mockClient).from('employees').update('9', { from: 5, to: 3, type: 'dotted_line' }).execute() as EdgeResponse
             expect(result.id).toBe(9)
             expect(result.type).toBe('dotted_line')
         })
@@ -322,7 +322,7 @@ describe('Graph', () => {
         it('returns delete count response', async () => {
             const mockResponse = { deleted: 3 }
             mockHttpClient.delete.mockResolvedValue(mockResponse)
-            const result = await new Graph(mockClient).from('employees').deleteEdge([1, 2, 3]).execute()
+            const result = await new Graph(mockClient).from('employees').delete([1, 2, 3]).execute()
             expect((result as any).deleted).toBe(3)
         })
     })
