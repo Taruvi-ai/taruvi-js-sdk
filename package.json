@@ -15,6 +15,9 @@
     "sdk",
     "EOX Vantage"
   ],
+  "dependencies": {
+    "axios": "^1.13.6"
+  },
   "author": "Curran C Doddabele",
   "license": "MIT",
   "peerDependencies": {
