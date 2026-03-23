@@ -248,12 +248,12 @@ describe('Builder immutability', () => {
         mockHttpClient.post.mockResolvedValue({})
         const base = new Graph(mockClient).from('employees')
         const traversal = base.get('1').include('descendants')
-        const edge = base.createEdge([{ from: 1, to: 2, type: 'manager' }])
+        const edge = base.create([{ from: 1, to: 2, type: 'manager' }])
 
         await traversal.execute()
         await edge.execute()
 
         expect(mockHttpClient.get.mock.calls[0][0]).toContain('/data/1/')
-        expect(mockHttpClient.post.mock.calls[0][0]).toContain('/edges/')
+        expect(mockHttpClient.post.mock.calls[0][0]).toContain('_edges/data/')
     })
 })

@@ -66,6 +66,34 @@ export class Database<T = Record<string, unknown>> {
         })
     }
 
+    search(query: string): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            search: query
+        })
+    }
+
+    aggregate(...expressions: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            _aggregate: expressions.join(',')
+        })
+    }
+
+    groupBy(...fields: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            _group_by: fields.join(',')
+        })
+    }
+
+    having(condition: string): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            _having: condition
+        })
+    }
+
     get(recordId: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.GET)
     }

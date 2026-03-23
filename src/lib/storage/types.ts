@@ -43,8 +43,8 @@ export interface StorageObject {
     visibility?: string
     created_at: string
     updated_at: string
-    created_by?: number
-    modified_by?: number
+    created_by?: string
+    modified_by?: string
 }
 
 // Response types - uses standard wrapper

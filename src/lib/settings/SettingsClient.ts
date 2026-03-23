@@ -11,4 +11,12 @@ export class Settings {
     async get<T = unknown>(): Promise<T> {
         return await this.client.httpClient.get<T>(SettingsRoutes.metadata)
     }
+
+    async getUserAttributes<T = unknown>(): Promise<T> {
+        return await this.client.httpClient.get<T>(SettingsRoutes.userAttributes)
+    }
+
+    async updateUserAttributes<T = unknown>(schema: Record<string, unknown>): Promise<T> {
+        return await this.client.httpClient.post<T>(SettingsRoutes.userAttributes, schema)
+    }
 }

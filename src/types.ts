@@ -85,6 +85,14 @@ export interface DatabaseFilters {
     // Populate relations
     populate?: string
 
+    // Search (translates to search_vector__search on backend)
+    search?: string
+
+    // Aggregates
+    _aggregate?: string
+    _group_by?: string
+    _having?: string
+
     // Dynamic filters - allows any field with operators
     [key: string]: string | number | boolean | undefined
 }

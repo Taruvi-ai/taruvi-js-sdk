@@ -148,7 +148,7 @@ describe('Storage', () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('folder/file name.pdf').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(
-                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/'
+                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/?metadata=true'
             )
         })
 

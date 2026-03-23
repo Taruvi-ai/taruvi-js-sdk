@@ -1,12 +1,12 @@
 export const UserRoutes = {
     baseUrl: "api/users/",
     getCurrentUser: () => `${UserRoutes.baseUrl}me/`,
+    preferences: () => `${UserRoutes.baseUrl}me/preferences/`,
     getUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
     updateUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
     deleteUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
     listUser: (filter: string) => `${UserRoutes.baseUrl}${filter}`,
     getUserApps: (username: string) => `${UserRoutes.baseUrl}${username}/apps/`,
-    getPreferences: () => `${UserRoutes.baseUrl}me/preferences/`,
     assignRoles: () => `api/assign/roles/`,
     revokeRoles: () => `api/revoke/roles/`
 } as const

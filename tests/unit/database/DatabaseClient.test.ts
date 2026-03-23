@@ -182,19 +182,19 @@ describe('Database', () => {
 
     describe('first()', () => {
         it('returns first item from array', async () => {
-            mockHttpClient.get.mockResolvedValue([{ id: '1' }, { id: '2' }])
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '1' }, { id: '2' }] })
             const result = await new Database(mockClient).from('accounts').first()
             expect(result).toEqual({ id: '1' })
         })
 
         it('returns null for empty array', async () => {
-            mockHttpClient.get.mockResolvedValue([])
+            mockHttpClient.get.mockResolvedValue({ data: [] })
             const result = await new Database(mockClient).from('accounts').first()
             expect(result).toBeNull()
         })
 
         it('returns single item if not array', async () => {
-            mockHttpClient.get.mockResolvedValue({ id: '1' })
+            mockHttpClient.get.mockResolvedValue({ data: { id: '1' } })
             const result = await new Database(mockClient).from('accounts').get('1').first()
             expect(result).toEqual({ id: '1' })
         })
@@ -202,13 +202,13 @@ describe('Database', () => {
 
     describe('count()', () => {
         it('returns array length', async () => {
-            mockHttpClient.get.mockResolvedValue([{ id: '1' }, { id: '2' }, { id: '3' }])
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '1' }, { id: '2' }, { id: '3' }] })
             const result = await new Database(mockClient).from('accounts').count()
             expect(result).toBe(3)
         })
 
         it('returns 0 for non-array', async () => {
-            mockHttpClient.get.mockResolvedValue({ id: '1' })
+            mockHttpClient.get.mockResolvedValue({ data: { id: '1' } })
             const result = await new Database(mockClient).from('accounts').get('1').count()
             expect(result).toBe(0)
         })

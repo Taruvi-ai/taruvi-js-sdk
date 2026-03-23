@@ -54,10 +54,10 @@ export class User {
     }
 
     async getPreferences(): Promise<UserPreferencesResponse> {
-        return await this.client.httpClient.get<UserPreferencesResponse>(UserRoutes.getPreferences())
+        return await this.client.httpClient.get<UserPreferencesResponse>(UserRoutes.preferences())
     }
 
     async updatePreferences(body: UserPreferencesUpdate): Promise<UserPreferencesResponse> {
-        return await this.client.httpClient.put<UserPreferencesResponse>(UserRoutes.getPreferences(), body)
+        return await this.client.httpClient.put<UserPreferencesResponse>(UserRoutes.preferences(), body)
     }
 }
