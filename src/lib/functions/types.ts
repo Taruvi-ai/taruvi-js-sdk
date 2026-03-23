@@ -9,7 +9,9 @@ export interface FunctionInvocation {
     function: number
     function_name: string
     function_slug: string
+    user_id: string | null
     user_username: string
+    user_email: string
     task_status: string
     trigger_type: string
     created_at: string

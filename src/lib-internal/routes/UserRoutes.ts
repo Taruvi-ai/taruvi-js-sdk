@@ -1,6 +1,7 @@
 export const UserRoutes = {
     baseUrl: "api/users/",
     getCurrentUser: () => `${UserRoutes.baseUrl}me/`,
+    preferences: () => `${UserRoutes.baseUrl}me/preferences/`,
     getUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
     updateUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,
     deleteUser: (username: string) => `${UserRoutes.baseUrl}${username}/`,

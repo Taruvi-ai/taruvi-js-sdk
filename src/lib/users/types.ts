@@ -88,6 +88,24 @@ export type UserResponse = TaruviResponse<UserData>
 export type UserListResponse = TaruviResponse<UserData[]>
 export type UserAppsResponse = TaruviResponse<UserApp[]>
 
+export interface UserPreferences {
+    date_format: string
+    time_format: string
+    timezone: string
+    theme: string
+    widget_config: Record<string, unknown>
+}
+
+export interface UserPreferencesUpdate {
+    date_format?: string
+    time_format?: string
+    timezone?: string
+    theme?: string
+    widget_config?: Record<string, unknown>
+}
+
+export type UserPreferencesResponse = TaruviResponse<UserPreferences>
+
 export interface AssignRolesRequest {
     roles: string[]
     usernames: string[]

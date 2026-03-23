@@ -13,17 +13,23 @@ export interface UserCreateRequest {
 }
 
 export interface UserCreateResponse {
-    id: number
-    uuid: string
+    id: string
     username: string
     email: string
     first_name: string
     last_name: string
+    full_name: string
     is_active: boolean
-    is_staff: boolean
     is_superuser: boolean
     is_deleted: boolean
     date_joined: string
+    last_login: string
+    groups: UserGroup[]
+    user_permissions: UserPermission[]
+    attributes: Record<string, unknown>
+    missing_attributes: string[]
+    roles: UserRole[]
+    icon_url: string | null
 }
 
 export interface UserGroup {
@@ -47,23 +53,23 @@ export interface UserRole {
 }
 
 export interface UserDataResponse {
-    id: number
+    id: string
     username: string
     email: string
     first_name: string
     last_name: string
     full_name: string
     is_active: boolean
-    is_staff: boolean
     is_superuser: boolean
     is_deleted: boolean
-    date_joined: string // ISO 8601 date-time string
-    last_login: string // ISO 8601 date-time string
+    date_joined: string
+    last_login: string
     groups: UserGroup[]
     user_permissions: UserPermission[]
     attributes: Record<string, unknown>
     missing_attributes: string[]
     roles: UserRole[]
+    icon_url: string | null
 }
 
 export interface UserUpdateRequest {
@@ -76,17 +82,23 @@ export interface UserUpdateRequest {
 }
 
 export interface UserUpdateResponse {
-    id: number
-    uuid: string
+    id: string
     username: string
     email: string
     first_name: string
     last_name: string
+    full_name: string
     is_active: boolean
-    is_staff: boolean
     is_superuser: boolean
     is_deleted: boolean
     date_joined: string
+    last_login: string
+    groups: UserGroup[]
+    user_permissions: UserPermission[]
+    attributes: Record<string, unknown>
+    missing_attributes: string[]
+    roles: UserRole[]
+    icon_url: string | null
 }
 
 export interface UserList {

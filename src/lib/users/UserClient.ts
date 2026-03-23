@@ -1,5 +1,5 @@
 import type { Client } from "../../client.js";
-import type { UserCreateRequest, UserResponse, UserListResponse, UserListFilters, UserUpdateRequest, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse } from "./types.js";
+import type { UserCreateRequest, UserResponse, UserListResponse, UserListFilters, UserUpdateRequest, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse, UserPreferencesResponse, UserPreferencesUpdate } from "./types.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -51,5 +51,13 @@ export class User {
             UserRoutes.revokeRoles(),
             request
         )
+    }
+
+    async getPreferences(): Promise<UserPreferencesResponse> {
+        return await this.client.httpClient.get<UserPreferencesResponse>(UserRoutes.preferences())
+    }
+
+    async updatePreferences(body: UserPreferencesUpdate): Promise<UserPreferencesResponse> {
+        return await this.client.httpClient.put<UserPreferencesResponse>(UserRoutes.preferences(), body)
     }
 }

@@ -126,7 +126,7 @@ describe('Graph', () => {
         it('list() calls GET on edges route', async () => {
             mockHttpClient.get.mockResolvedValue({ edges: [], total: 0 })
             await new Graph(mockClient).from('employees').list().execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/datatables/employees/edges/')
+            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/datatables/employees_edges/data/')
         })
 
         it('create() calls POST with array of edges', async () => {
@@ -137,7 +137,7 @@ describe('Graph', () => {
             mockHttpClient.post.mockResolvedValue({ status: 'success', data: edges, total: 2 })
             await new Graph(mockClient).from('employees').create(edges).execute()
             expect(mockHttpClient.post).toHaveBeenCalledWith(
-                'api/apps/test-app/datatables/employees/edges/',
+                'api/apps/test-app/datatables/employees_edges/data/',
                 edges
             )
         })
@@ -147,7 +147,7 @@ describe('Graph', () => {
             mockHttpClient.post.mockResolvedValue({ status: 'success', data: edges, total: 1 })
             await new Graph(mockClient).from('employees').create(edges).execute()
             expect(mockHttpClient.post).toHaveBeenCalledWith(
-                'api/apps/test-app/datatables/employees/edges/',
+                'api/apps/test-app/datatables/employees_edges/data/',
                 edges
             )
         })
@@ -157,7 +157,7 @@ describe('Graph', () => {
             mockHttpClient.patch.mockResolvedValue({ id: 9, ...edge })
             await new Graph(mockClient).from('employees').update('9', edge).execute()
             expect(mockHttpClient.patch).toHaveBeenCalledWith(
-                'api/apps/test-app/datatables/employees/edges/9/',
+                'api/apps/test-app/datatables/employees_edges/data/9/',
                 edge
             )
         })
@@ -166,7 +166,7 @@ describe('Graph', () => {
             mockHttpClient.delete.mockResolvedValue({ deleted: 2 })
             await new Graph(mockClient).from('employees').delete([9, 10]).execute()
             expect(mockHttpClient.delete).toHaveBeenCalledWith(
-                'api/apps/test-app/datatables/employees/edges/',
+                'api/apps/test-app/datatables/employees_edges/data/',
                 { edge_ids: [9, 10] }
             )
         })

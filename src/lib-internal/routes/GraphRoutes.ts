@@ -6,7 +6,7 @@ export const GraphRoutes = {
 
 export const GraphEdgeRoutes = {
     baseUrl: (appSlug: string) => `api/apps/${appSlug}`,
-    edges: (tableName: string): string => `/datatables/${tableName}/edges`,
+    edges: (tableName: string): string => `/datatables/${tableName}_edges/data`,
     edgeId: (edgeId: string): string => `/${edgeId}`
 }
 

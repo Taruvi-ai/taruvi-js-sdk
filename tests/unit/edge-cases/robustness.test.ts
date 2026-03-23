@@ -254,6 +254,6 @@ describe('Builder immutability', () => {
         await edge.execute()
 
         expect(mockHttpClient.get.mock.calls[0][0]).toContain('/data/1/')
-        expect(mockHttpClient.post.mock.calls[0][0]).toContain('/edges/')
+        expect(mockHttpClient.post.mock.calls[0][0]).toContain('_edges/data/')
     })
 })
