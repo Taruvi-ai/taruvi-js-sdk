@@ -15,8 +15,7 @@ export interface UserCreateRequest {
 }
 
 export interface UserData {
-    id: number
-    uuid?: string
+    id: string
     username: string
     email: string
     first_name: string
@@ -33,6 +32,7 @@ export interface UserData {
     attributes?: Record<string, unknown>
     missing_attributes?: string[]
     roles?: UserRole[]
+    icon_url?: string
 }
 
 export interface UserGroup {
