@@ -1,7 +1,7 @@
 import type { Client } from "../../client.js"
 import { PolicyRoutes } from "../../lib-internal/routes/PolicyRoutes.js"
 import type { TaruviConfig } from "../../types.js"
-import type { Resources, Resource, Principal, PolicyCheckBatchResult, GetAllowedActionsOptions } from "./types.js"
+import type { Resources, Resource, PolicyCheckBatchResult, GetAllowedActionsOptions } from "./types.js"
 
 export class Policy {
     private client: Client
