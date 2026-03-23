@@ -27,7 +27,7 @@ export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
 export type { UserCreateRequest, UserData, UserUpdateRequest, UserListFilters, UserApp, UserResponse, UserListResponse, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse, UserGroup, UserPermission, UserRole, UserPreferences, UserPreferencesUpdate, UserPreferencesResponse } from "./lib/users/types.js"
 
 // Policy types
-export type { Principal, Resource, Resources, PolicyCheckResult, PolicyCheckBatchResult, ResourceCheckResponse } from "./lib/policy/types.js"
+export type { Principal, Resource, Resources, PolicyCheckResult, PolicyCheckBatchResult, ResourceCheckResponse, GetAllowedActionsOptions } from "./lib/policy/types.js"
 
 // App types
 export type { RoleData, AppSettingsData, RoleResponse, RolesListResponse, AppSettingsResponse } from "./lib/app/types.js"
