@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Database } from '../../../src/lib/database/DatabaseClient.js'
 import { Client } from '../../../src/client.js'
-import type { DatabaseResponse, DatabaseSingleResponse } from '../../../src/lib/database/types.js'
+import type { DatabaseResponse, DatabaseSingleResponse, EdgeResponse } from '../../../src/lib/database/types.js'
+import type { TaruviResponse } from '../../../src/types.js'
 
 // Mock the Client
 const mockHttpClient = {
@@ -299,6 +300,188 @@ describe('Database', () => {
             mockHttpClient.delete.mockResolvedValue(mockResponse)
             const result = await new Database(mockClient).from('accounts').delete('1').execute()
             expect((result as any).status).toBe('success')
+        })
+    })
+
+    describe('graph traversal', () => {
+        it('include() sets include param', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('1').include('descendants').execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('include=descendants'))
+        })
+
+        it('include() supports ancestors', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('4').include('ancestors').execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('include=ancestors'))
+        })
+
+        it('include() supports both', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('2').include('both').execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('include=both'))
+        })
+
+        it('depth() sets depth param', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('1').include('descendants').depth(3).execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('depth=3'))
+        })
+
+        it('format() sets format param to tree', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('1').format('tree').depth(3).execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('format=tree'))
+        })
+
+        it('format() sets format param to graph', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').format('graph').execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('format=graph'))
+        })
+
+        it('types() sets relationship_type as repeated params', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').format('graph').types(['manager', 'dotted_line']).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('relationship_type=manager')
+            expect(url).toContain('relationship_type=dotted_line')
+        })
+
+        it('types() with single type', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').format('graph').types(['manager']).execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('relationship_type=manager'))
+        })
+
+        it('combines include, depth, and get', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').get('1').include('descendants').depth(3).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('/1/')
+            expect(url).toContain('include=descendants')
+            expect(url).toContain('depth=3')
+        })
+
+        it('combines format, types, and depth', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('employees').format('graph').types(['manager']).depth(2).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('format=graph')
+            expect(url).toContain('relationship_type=manager')
+            expect(url).toContain('depth=2')
+        })
+    })
+
+    describe('graph response handling', () => {
+        it('returns descendants response', async () => {
+            const mockResponse = {
+                status: 'success',
+                data: {
+                    data: { id: 1, name: 'Alice Chen', title: 'CEO' },
+                    reports: [
+                        { id: 2, name: 'Bob Smith', _depth: 1, _relationship_type: 'manager' },
+                        { id: 3, name: 'Carol White', _depth: 1, _relationship_type: 'manager' }
+                    ]
+                }
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('employees').get('1').include('descendants').execute()
+            expect((result as any).data.reports).toHaveLength(2)
+        })
+
+        it('returns tree format with nested children', async () => {
+            const mockResponse = {
+                status: 'success',
+                data: [{
+                    id: 1, name: 'Alice Chen', _depth: 0,
+                    children: [
+                        { id: 2, name: 'Bob Smith', _depth: 1, children: [] },
+                        { id: 3, name: 'Carol White', _depth: 1, children: [] }
+                    ]
+                }],
+                total: 3
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('employees').get('1').format('tree').depth(2).execute()
+            expect((result as any).data[0].children).toHaveLength(2)
+        })
+
+        it('returns graph format with nodes and edges', async () => {
+            const mockResponse = {
+                status: 'success',
+                data: {
+                    nodes: [{ id: 1, name: 'Alice Chen' }, { id: 2, name: 'Bob Smith' }],
+                    edges: [{ id: 9, from_id: 2, to_id: 1, type: 'manager' }]
+                },
+                total: 2
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('employees').format('graph').types(['manager']).execute()
+            expect((result as any).data.nodes).toHaveLength(2)
+            expect((result as any).data.edges).toHaveLength(1)
+        })
+    })
+
+    describe('edges()', () => {
+        it('targets _edges table for list', async () => {
+            mockHttpClient.get.mockResolvedValue({ edges: [], total: 0 })
+            await new Database(mockClient).from('employees').edges().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/datatables/employees_edges/data/')
+        })
+
+        it('create() calls POST on edges route', async () => {
+            const edges = [
+                { from_id: 5, to_id: 2, type: 'manager' },
+                { from_id: 5, to_id: 3, type: 'dotted_line', metadata: { project: 'AI' } }
+            ]
+            mockHttpClient.post.mockResolvedValue({ status: 'success', data: edges, total: 2 })
+            await new Database(mockClient).from('employees').edges().create(edges).execute()
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/employees_edges/data/',
+                edges
+            )
+        })
+
+        it('update() calls PATCH with edge ID', async () => {
+            const edge = { from_id: 5, to_id: 3, type: 'dotted_line' }
+            mockHttpClient.patch.mockResolvedValue({ id: 9, ...edge })
+            await new Database(mockClient).from('employees').edges().get('9').update(edge).execute()
+            expect(mockHttpClient.patch).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/employees_edges/data/9/',
+                edge
+            )
+        })
+
+        it('delete() calls DELETE with edge_ids body', async () => {
+            mockHttpClient.delete.mockResolvedValue({ deleted: 2 })
+            await new Database(mockClient).from('employees').edges().delete([9, 10]).execute()
+            expect(mockHttpClient.delete).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/employees_edges/data/',
+                { edge_ids: [9, 10] }
+            )
+        })
+
+        it('returns created edges matching EdgeResponse', async () => {
+            const mockResponse: TaruviResponse<EdgeResponse[]> = {
+                status: 'success',
+                message: 'Edges created successfully',
+                data: [{ id: 10, from_id: 5, to_id: 2, type: 'manager', metadata: {} }],
+                total: 1
+            }
+            mockHttpClient.post.mockResolvedValue(mockResponse)
+            const result = await new Database(mockClient).from('employees').edges().create([{ from_id: 5, to_id: 2, type: 'manager' }]).execute() as TaruviResponse<EdgeResponse[]>
+            expect(result.data).toHaveLength(1)
+            expect(result.data[0].id).toBe(10)
+        })
+
+        it('does not affect non-edge queries', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            const base = new Database(mockClient).from('employees')
+            await base.edges().execute()
+            await base.execute()
+            expect(mockHttpClient.get).toHaveBeenNthCalledWith(1, 'api/apps/test-app/datatables/employees_edges/data/')
+            expect(mockHttpClient.get).toHaveBeenNthCalledWith(2, 'api/apps/test-app/datatables/employees/data/')
         })
     })
 })

@@ -64,3 +64,27 @@ export interface DatabaseRequest {
 // Response types - uses standard wrapper
 export type DatabaseResponse<T = unknown> = TaruviResponse<T[]>
 export type DatabaseSingleResponse<T = unknown> = TaruviResponse<T>
+
+// Graph traversal types
+export type GraphInclude = 'descendants' | 'ancestors' | 'both'
+export type GraphFormat = 'tree' | 'graph'
+
+// Edge types
+export interface EdgeRequest {
+    from_id: number | string
+    to_id: number | string
+    type: string
+    metadata?: Record<string, unknown>
+}
+
+export interface EdgeResponse {
+    id: number
+    from_id: number | string
+    to_id: number | string
+    type: string
+    metadata?: Record<string, unknown>
+}
+
+export interface EdgeDeleteRequest {
+    edge_ids: number[]
+}

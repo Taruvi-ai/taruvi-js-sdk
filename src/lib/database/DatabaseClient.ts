@@ -1,9 +1,16 @@
 import type { Client } from "../../client.js";
-import { DatabaseRoutes, type DatabaseRouteKey } from "../../lib-internal/routes/DatabaseRoutes.js";
+import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
+
+interface GraphQueryParams {
+    include?: GraphInclude
+    depth?: number
+    format?: GraphFormat
+    relationship_type?: string[]
+}
 
 // Used to access app data
 export class Database<T = Record<string, unknown>> {
@@ -13,28 +20,53 @@ export class Database<T = Record<string, unknown>> {
     private operation: HttpMethod | undefined
     private body: object | undefined
     private queryParams: DatabaseFilters | undefined
+    private graphParams: GraphQueryParams
+    private isEdges: boolean
 
-    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, queryParams?: DatabaseFilters) {
+    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, queryParams?: DatabaseFilters, graphParams: GraphQueryParams = {}, isEdges: boolean = false) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
         this.body = body
         this.config = this.client.getConfig()
         this.queryParams = queryParams
+        this.graphParams = graphParams
+        this.isEdges = isEdges
     }
 
     from<U = Record<string, unknown>>(dataTables: string): Database<U> {
-        return new Database<U>(this.client, { ...this.urlParams, dataTables }, undefined, undefined)
+        return new Database<U>(this.client, { ...this.urlParams, dataTables }, undefined, undefined, undefined, {}, this.isEdges)
     }
 
+    edges(): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, this.queryParams, { ...this.graphParams }, true)
+    }
+
+    // Graph traversal methods
+    include(direction: GraphInclude): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, include: direction }, this.isEdges)
+    }
+
+    depth(n: number): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, depth: n }, this.isEdges)
+    }
+
+    format(fmt: GraphFormat): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, format: fmt }, this.isEdges)
+    }
+
+    types(types: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, relationship_type: types }, this.isEdges)
+    }
+
+    // Filter & query methods
     filter(field: string, operator: FilterOperator, value: string | number | boolean | (string | number)[]): Database<T> {
         const filterKey = operator === 'eq' ? field : `${field}__${operator}`
-        // For 'in' and 'nin' operators, join array values with comma
         const filterValue = Array.isArray(value) ? value.join(',') : value
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             [filterKey]: filterValue
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     sort(field: string, order: SortOrder = 'asc'): Database<T> {
@@ -42,72 +74,77 @@ export class Database<T = Record<string, unknown>> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             ordering
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     pageSize(size: number): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             page_size: size
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     page(num: number): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             page: num
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     populate(populate: string[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             populate: populate.join(',')
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     search(query: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             search: query
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     aggregate(...expressions: string[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             _aggregate: expressions.join(',')
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     groupBy(...fields: string[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             _group_by: fields.join(',')
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     having(condition: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             _having: condition
-        })
+        }, { ...this.graphParams }, this.isEdges)
     }
 
+    // CRUD methods
     get(recordId: string): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.GET)
+        return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.GET, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    create(body: Partial<T> | Partial<T>[]): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object)
+    create(body: Partial<T> | Partial<T>[] | EdgeRequest[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    update(body: Partial<T> | Partial<T>[]): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object)
+    update(body: Partial<T> | EdgeRequest): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    delete(recordId: string): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams, recordId }, HttpMethod.DELETE)
+    delete(recordIdOrEdgeIds: string | number[]): Database<T> {
+        if (Array.isArray(recordIdOrEdgeIds)) {
+            const body: EdgeDeleteRequest = { edge_ids: recordIdOrEdgeIds }
+            return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, body, this.queryParams, { ...this.graphParams }, this.isEdges)
+        }
+        return new Database<T>(this.client, { ...this.urlParams, recordId: recordIdOrEdgeIds }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
     async first(): Promise<T | null> {
@@ -127,22 +164,22 @@ export class Database<T = Record<string, unknown>> {
         return Array.isArray(response.data) ? response.data.length : 0
     }
 
+    private getTableName(): string {
+        const table = this.urlParams.dataTables
+        if (!table) throw new Error('Table name is required. Call .from(tableName) first.')
+        return this.isEdges ? `${table}_edges` : table
+    }
+
     private buildRoute(): string {
-        return (
-            DatabaseRoutes.baseUrl(this.config.appSlug) +
-            (Object.keys(this.urlParams) as DatabaseRouteKey[]).reduce((acc, key) => {
-                const value = this.urlParams[key]
-                const routeBuilder = DatabaseRoutes[key]
+        const tableName = this.getTableName()
+        const base = DatabaseRoutes.baseUrl(this.config.appSlug) +
+            DatabaseRoutes.dataTables(tableName) +
+            (this.urlParams.recordId ? DatabaseRoutes.recordId(this.urlParams.recordId) : '') +
+            '/'
 
-                if (value && routeBuilder) {
-                    acc += routeBuilder(value)
-                }
-
-                return acc
-            }, "") +
-            "/" +
-            buildQueryString(this.queryParams)
-        )
+        // Merge database filters and graph params into one query string
+        const allParams: Record<string, unknown> = { ...this.queryParams, ...this.graphParams }
+        return base + buildQueryString(allParams)
     }
 
     async execute(): Promise<TaruviResponse<T | T[]>> {
@@ -150,9 +187,7 @@ export class Database<T = Record<string, unknown>> {
             throw new Error('Table name is required. Call .from(tableName) first.')
         }
 
-        // Build the API URL
         const url = this.buildRoute()
-
         const operation = this.operation || HttpMethod.GET
 
         switch (operation) {
@@ -166,6 +201,9 @@ export class Database<T = Record<string, unknown>> {
                 return await this.client.httpClient.patch(url, this.body)
 
             case HttpMethod.DELETE:
+                if (this.body) {
+                    return await this.client.httpClient.delete(url, this.body)
+                }
                 return await this.client.httpClient.delete(url)
 
             case HttpMethod.GET:
