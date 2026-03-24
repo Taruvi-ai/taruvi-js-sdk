@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Database } from '../../../src/lib/database/DatabaseClient.js'
 import { Storage } from '../../../src/lib/storage/StorageClient.js'
-import { Graph } from '../../../src/lib/graphs/GraphClient.js'
 import { Client } from '../../../src/client.js'
 
 const mockHttpClient = {
@@ -61,9 +60,9 @@ describe('Non-JSON / empty / malformed responses', () => {
         await expect(new Database(mockClient).from('accounts').execute()).rejects.toThrow('Network Error')
     })
 
-    it('propagates network error for Graph', async () => {
+    it('propagates network error for Database graph', async () => {
         mockHttpClient.get.mockRejectedValue(new Error('ECONNREFUSED'))
-        await expect(new Graph(mockClient).from('employees').execute()).rejects.toThrow('ECONNREFUSED')
+        await expect(new Database(mockClient).from('employees').execute()).rejects.toThrow('ECONNREFUSED')
     })
 
     it('propagates network error for Storage', async () => {
@@ -126,7 +125,7 @@ describe('Encoding edge cases', () => {
 
     it('encodes graph relationship types with special chars', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Graph(mockClient).from('employees').types(['reports_to']).execute()
+        await new Database(mockClient).from('employees').types(['reports_to']).execute()
         expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('relationship_type=reports_to'))
     })
 
@@ -180,9 +179,9 @@ describe('Builder immutability', () => {
         expect(mockHttpClient.get.mock.calls[0][0]).not.toContain('page=2')
     })
 
-    it('Graph: chaining does not mutate original instance', async () => {
+    it('Database graph: chaining does not mutate original instance', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        const base = new Graph(mockClient).from('employees')
+        const base = new Database(mockClient).from('employees')
         const descendants = base.get('1').include('descendants').depth(3)
         const ancestors = base.get('4').include('ancestors')
 
@@ -201,9 +200,9 @@ describe('Builder immutability', () => {
         expect(ancUrl).not.toContain('depth=3')
     })
 
-    it('Graph: format does not leak between chains', async () => {
+    it('Database graph: format does not leak between chains', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        const base = new Graph(mockClient).from('employees')
+        const base = new Database(mockClient).from('employees')
         const tree = base.format('tree')
         const graph = base.format('graph')
 
@@ -243,12 +242,12 @@ describe('Builder immutability', () => {
         expect(mockHttpClient.get.mock.calls[1][0]).not.toContain('/123/')
     })
 
-    it('Graph: edge operations do not affect traversal chain', async () => {
+    it('Database: edge operations do not affect traversal chain', async () => {
         mockHttpClient.get.mockResolvedValue([])
         mockHttpClient.post.mockResolvedValue({})
-        const base = new Graph(mockClient).from('employees')
+        const base = new Database(mockClient).from('employees')
         const traversal = base.get('1').include('descendants')
-        const edge = base.create([{ from: 1, to: 2, type: 'manager' }])
+        const edge = base.edges().create([{ from_id: 1, to_id: 2, type: 'manager' }])
 
         await traversal.execute()
         await edge.execute()
