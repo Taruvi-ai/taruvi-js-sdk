@@ -1,40 +1,53 @@
 import type { TaruviConfig } from "../../types.js";
 import type { TokenClient } from "../token/TokenClient.js";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
- * Automatically adds authentication headers and converts
- * error responses to typed SDK errors.
+ * Sends session token via X-Session-Token header.
+ * Clears tokens on 401/403 auth failures.
  *
  * @internal
  */
 export class HttpClient {
     private config: TaruviConfig
     private tokenClient: TokenClient
+    private axiosInstance: AxiosInstance
 
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
         this.config = config
         this.tokenClient = tokenClient
+        this.axiosInstance = axios.create({ baseURL: config.apiUrl })
+        this.setupInterceptors()
     }
 
-    private getAuthHeaders(isFormData: boolean = false): Record<string, string> {
-        const headers: Record<string, string> = {}
+    private setupInterceptors(): void {
+        // Request interceptor: attach session token
+        this.axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+            const isFormData = config.data instanceof FormData
+            if (!isFormData) {
+                config.headers['Content-Type'] = 'application/json'
+            }
+            const sessionToken = this.tokenClient.getSessionToken()
+            if (sessionToken) {
+                config.headers['X-Session-Token'] = sessionToken
+            }
+            return config
+        })
 
-        // Don't set Content-Type for FormData - let axios set it with the boundary
-        if (!isFormData) {
-            headers['Content-Type'] = 'application/json'
-        }
-
-        // Tenant admin session token
-        const jwt = this.tokenClient.getToken()
-        if (jwt) {
-            headers['Authorization'] = `Bearer ${jwt}`
-        }
-
-        return headers
+        // Response interceptor: clear tokens on auth failure
+        this.axiosInstance.interceptors.response.use(
+            (response) => response,
+            (error: AxiosError) => {
+                const status = error.response?.status
+                if (status === 401 || status === 403) {
+                    this.tokenClient.clearTokens()
+                }
+                return Promise.reject(error)
+            }
+        )
     }
 
     private handleError(error: unknown): never {
@@ -47,19 +60,15 @@ export class HttpClient {
                 const body = error.response.data as ErrorResponseBody | undefined
                 throw createErrorFromResponse(error.response.status, body)
             }
-            // No response — network error
             throw new NetworkError(error.message)
         }
 
-        // Unknown error
         throw error
     }
 
     async get<T>(endpoint: string): Promise<T> {
         try {
-            const { data } = await axios.get<T>(`${this.config.apiUrl}/${endpoint}`, {
-                headers: this.getAuthHeaders()
-            })
+            const { data } = await this.axiosInstance.get<T>(`/${endpoint}`)
             return data
         } catch (error) {
             this.handleError(error)
@@ -68,14 +77,7 @@ export class HttpClient {
 
     async post<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         try {
-            const isFormData = body instanceof FormData
-            const { data } = await axios.post<T>(
-                `${this.config.apiUrl}/${endpoint}`,
-                body,
-                {
-                    headers: this.getAuthHeaders(isFormData)
-                }
-            )
+            const { data } = await this.axiosInstance.post<T>(`/${endpoint}`, body)
             return data
         } catch (error) {
             this.handleError(error)
@@ -84,12 +86,7 @@ export class HttpClient {
 
     async put<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         try {
-            const isFormData = body instanceof FormData
-            const { data } = await axios.put<T>(`${this.config.apiUrl}/${endpoint}`,
-                body,
-                {
-                    headers: this.getAuthHeaders(isFormData)
-                })
+            const { data } = await this.axiosInstance.put<T>(`/${endpoint}`, body)
             return data
         } catch (error) {
             this.handleError(error)
@@ -98,13 +95,7 @@ export class HttpClient {
 
     async delete<T, D = unknown>(endpoint: string, body?: D): Promise<T> {
         try {
-            const { data } = await axios.delete<T>(
-                `${this.config.apiUrl}/${endpoint}`,
-                {
-                    headers: this.getAuthHeaders(),
-                    data: body
-                }
-            )
+            const { data } = await this.axiosInstance.delete<T>(`/${endpoint}`, { data: body })
             return data
         } catch (error) {
             this.handleError(error)
@@ -113,14 +104,7 @@ export class HttpClient {
 
     async patch<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         try {
-            const isFormData = body instanceof FormData
-            const { data } = await axios.patch<T>(
-                `${this.config.apiUrl}/${endpoint}`,
-                body,
-                {
-                    headers: this.getAuthHeaders(isFormData)
-                }
-            )
+            const { data } = await this.axiosInstance.patch<T>(`/${endpoint}`, body)
             return data
         } catch (error) {
             this.handleError(error)

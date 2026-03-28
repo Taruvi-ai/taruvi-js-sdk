@@ -5,11 +5,8 @@ import { Client } from '../../../src/client.js'
 const mockTokenClient = {
     isAuthenticated: vi.fn(),
     getToken: vi.fn(),
-    getRefreshToken: vi.fn(),
-    isTokenExpired: vi.fn(),
+    getSessionToken: vi.fn(),
     clearTokens: vi.fn(),
-    updateAccessToken: vi.fn(),
-    updateRefreshToken: vi.fn()
 }
 
 const mockHttpClient = {
@@ -47,45 +44,17 @@ describe('Auth', () => {
         })
     })
 
-    describe('getAccessToken()', () => {
-        it('returns access token from tokenClient', () => {
-            mockTokenClient.getToken.mockReturnValue('access-token-123')
+    describe('getSessionToken()', () => {
+        it('returns session token from tokenClient', () => {
+            mockTokenClient.getSessionToken.mockReturnValue('session-token-123')
             const auth = new Auth(mockClient)
-            expect(auth.getAccessToken()).toBe('access-token-123')
+            expect(auth.getSessionToken()).toBe('session-token-123')
         })
 
-        it('returns null when no token exists', () => {
-            mockTokenClient.getToken.mockReturnValue(null)
+        it('returns null when no session token exists', () => {
+            mockTokenClient.getSessionToken.mockReturnValue(null)
             const auth = new Auth(mockClient)
-            expect(auth.getAccessToken()).toBeNull()
-        })
-    })
-
-    describe('getRefreshToken()', () => {
-        it('returns refresh token from tokenClient', () => {
-            mockTokenClient.getRefreshToken.mockReturnValue('refresh-token-456')
-            const auth = new Auth(mockClient)
-            expect(auth.getRefreshToken()).toBe('refresh-token-456')
-        })
-
-        it('returns null when no refresh token exists', () => {
-            mockTokenClient.getRefreshToken.mockReturnValue(null)
-            const auth = new Auth(mockClient)
-            expect(auth.getRefreshToken()).toBeNull()
-        })
-    })
-
-    describe('isTokenExpired()', () => {
-        it('returns true when token is expired', () => {
-            mockTokenClient.isTokenExpired.mockReturnValue(true)
-            const auth = new Auth(mockClient)
-            expect(auth.isTokenExpired()).toBe(true)
-        })
-
-        it('returns false when token is valid', () => {
-            mockTokenClient.isTokenExpired.mockReturnValue(false)
-            const auth = new Auth(mockClient)
-            expect(auth.isTokenExpired()).toBe(false)
+            expect(auth.getSessionToken()).toBeNull()
         })
     })
 
@@ -116,15 +85,6 @@ describe('Auth', () => {
             const auth = new Auth(mockClient)
             const result = await auth.getCurrentUser()
 
-            expect(result).toBeNull()
-        })
-    })
-
-    describe('refreshAccessToken()', () => {
-        it('returns null when no refresh token available', async () => {
-            mockTokenClient.getRefreshToken.mockReturnValue(null)
-            const auth = new Auth(mockClient)
-            const result = await auth.refreshAccessToken()
             expect(result).toBeNull()
         })
     })

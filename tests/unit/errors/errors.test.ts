@@ -8,6 +8,7 @@ import {
     ConflictError,
     TimeoutError,
     NetworkError,
+    RateLimitError,
     createErrorFromResponse,
     ErrorCode
 } from '../../../src/lib-internal/errors/index.js'
@@ -81,6 +82,21 @@ describe('Error classes', () => {
         expect(err.code).toBe('NETWORK_ERROR')
     })
 
+    it('RateLimitError defaults', () => {
+        const err = new RateLimitError()
+        expect(err.name).toBe('RateLimitError')
+        expect(err.statusCode).toBe(429)
+        expect(err.code).toBe('RATE_LIMITED')
+        expect(err.retryAfter).toBeUndefined()
+    })
+
+    it('RateLimitError with retryAfter', () => {
+        const err = new RateLimitError('Too many requests', 60)
+        expect(err.message).toBe('Too many requests')
+        expect(err.retryAfter).toBe(60)
+        expect(err).toBeInstanceOf(TaruviError)
+    })
+
     it('all errors are instanceof TaruviError', () => {
         expect(new ValidationError()).toBeInstanceOf(TaruviError)
         expect(new AuthError()).toBeInstanceOf(TaruviError)
@@ -89,6 +105,7 @@ describe('Error classes', () => {
         expect(new ConflictError()).toBeInstanceOf(TaruviError)
         expect(new TimeoutError()).toBeInstanceOf(TaruviError)
         expect(new NetworkError()).toBeInstanceOf(TaruviError)
+        expect(new RateLimitError()).toBeInstanceOf(TaruviError)
     })
 
     it('all errors are instanceof Error', () => {
@@ -169,6 +186,16 @@ describe('createErrorFromResponse', () => {
             message: 'Query timeout'
         })
         expect(err).toBeInstanceOf(TimeoutError)
+    })
+
+    it('429 returns RateLimitError', () => {
+        const err = createErrorFromResponse(429, {
+            status: 'error',
+            code: 'RATE_LIMITED',
+            message: 'Too many requests'
+        })
+        expect(err).toBeInstanceOf(RateLimitError)
+        expect(err.message).toBe('Too many requests')
     })
 
     it('500 returns TaruviError', () => {

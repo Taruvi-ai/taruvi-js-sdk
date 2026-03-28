@@ -63,6 +63,16 @@ export class TimeoutError extends TaruviError {
     }
 }
 
+export class RateLimitError extends TaruviError {
+    public readonly retryAfter: number | undefined
+
+    constructor(message = 'Rate limit exceeded', retryAfter?: number) {
+        super(message, 429, ErrorCode.RATE_LIMITED)
+        this.name = 'RateLimitError'
+        this.retryAfter = retryAfter
+    }
+}
+
 export class NetworkError extends TaruviError {
     constructor(message = 'Network error') {
         super(message, 0, ErrorCode.NETWORK_ERROR)
@@ -94,6 +104,8 @@ export function createErrorFromResponse(statusCode: number, body?: ErrorResponse
             return new NotFoundError(message)
         case 409:
             return new ConflictError(message, detail)
+        case 429:
+            return new RateLimitError(message)
         case 504:
             return new TimeoutError(message)
         default:

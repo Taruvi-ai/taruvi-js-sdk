@@ -5,13 +5,8 @@ import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 
 /**
  * Auth Client - Handles user authentication using Web UI Flow
- * Implements cross-domain authentication with redirect-based token delivery
- *
- * Flow:
- * 1. User calls login() → Redirects to backend /accounts/login/
- * 2. User authenticates on backend
- * 3. Backend redirects back with tokens in URL hash
- * 4. Client extracts and stores tokens automatically
+ * Uses session token for API authentication via X-Session-Token header.
+ * On 401/403, tokens are cleared automatically by HttpClient interceptor.
  */
 export class Auth {
     private client: Client
@@ -22,7 +17,6 @@ export class Auth {
 
     /**
      * Redirect to login page (Web UI Flow)
-     * @param callbackUrl - URL to redirect to after successful login (defaults to current page)
      */
     login(callbackUrl?: string): void {
         if (typeof window === "undefined") {
@@ -33,11 +27,8 @@ export class Auth {
         const config = this.client.getConfig()
         const callback = callbackUrl || window.location.origin + window.location.pathname
         const deskUrl = config.deskUrl || config.apiUrl
-
-        // Redirect to /accounts/login/ with redirect_to parameter
         const loginUrl = `${deskUrl}/accounts/login/?redirect_to=${encodeURIComponent(callback)}`
 
-        // Optional: Store state before redirecting
         if (typeof sessionStorage !== "undefined") {
             sessionStorage.setItem("auth_state", JSON.stringify({
                 returnTo: window.location.pathname,
@@ -50,7 +41,6 @@ export class Auth {
 
     /**
      * Redirect to signup page (Web UI Flow)
-     * @param callbackUrl - URL to redirect to after successful signup (defaults to current page)
      */
     signup(callbackUrl?: string): void {
         if (typeof window === "undefined") {
@@ -60,11 +50,8 @@ export class Auth {
 
         const config = this.client.getConfig()
         const callback = callbackUrl || window.location.origin + window.location.pathname
-
-        // Redirect to /accounts/signup/ with redirect_to parameter
         const signupUrl = `${config.apiUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
 
-        // Optional: Store state before redirecting
         if (typeof sessionStorage !== "undefined") {
             sessionStorage.setItem("auth_state", JSON.stringify({
                 returnTo: window.location.pathname,
@@ -77,8 +64,6 @@ export class Auth {
 
     /**
      * Logout user and redirect to logout page
-     * Fetches frontendUrl from site settings for redirect
-     * @param callbackUrl - URL to redirect to after logout (overrides frontendUrl from settings)
      */
     async logout(callbackUrl?: string): Promise<void> {
         if (typeof window === "undefined") {
@@ -86,14 +71,12 @@ export class Auth {
             return
         }
 
-        // Clear tokens immediately
         this.client.tokenClient.clearTokens()
 
         const config = this.client.getConfig()
         const deskUrl = config.deskUrl || config.apiUrl
         let callback: string = callbackUrl || ""
 
-        // If no callback provided, fetch frontendUrl from site settings
         if (!callback) {
             try {
                 const settings = await this.client.httpClient.get<{ frontend_url?: string }>(
@@ -106,93 +89,22 @@ export class Auth {
             }
         }
 
-        // Redirect to /accounts/logout/
         const logoutUrl = `${deskUrl}/accounts/logout/?redirect_to=${encodeURIComponent(callback)}`
-
         window.location.href = logoutUrl
     }
 
     /**
-     * Check if user is authenticated
+     * Check if user is authenticated (has session token)
      */
     isUserAuthenticated(): boolean {
         return this.client.tokenClient.isAuthenticated()
     }
 
     /**
-     * Get the current access token
+     * Get the current session token
      */
-    getAccessToken(): string | null {
-        return this.client.tokenClient.getToken()
-    }
-
-    /**
-     * Get the current refresh token
-     */
-    getRefreshToken(): string | null {
-        return this.client.tokenClient.getRefreshToken()
-    }
-
-    /**
-     * Check if the access token is expired
-     */
-    isTokenExpired(): boolean {
-        return this.client.tokenClient.isTokenExpired()
-    }
-
-    /**
-     * Refresh the access token using the refresh token
-     * ⚠️ IMPORTANT: Taruvi uses refresh token rotation
-     * You will receive BOTH a new access token AND a new refresh token
-     *
-     * @returns Promise with new tokens or null if refresh failed
-     */
-    async refreshAccessToken(): Promise<{ access: string; refresh: string; expires_in: number } | null> {
-        const refreshToken = this.client.tokenClient.getRefreshToken()
-
-        if (!refreshToken) {
-            console.error("No refresh token available")
-            return null
-        }
-
-        try {
-            const config = this.client.getConfig()
-            const response = await fetch(`${config.apiUrl}/api/cloud/auth/jwt/token/refresh/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refresh: refreshToken })
-            })
-
-            if (!response.ok) {
-                throw new Error(`Token refresh failed: ${response.statusText}`)
-            }
-
-            const data = await response.json()
-
-            // Update tokens in storage (both access and refresh due to rotation)
-            this.client.tokenClient.updateAccessToken(data.access, data.expires_in || 172800)
-
-            if (data.refresh) {
-                this.client.tokenClient.updateRefreshToken(data.refresh)
-            }
-
-            return {
-                access: data.access,
-                refresh: data.refresh || refreshToken,
-                expires_in: data.expires_in || 172800
-            }
-        } catch (error) {
-            console.error("Failed to refresh access token:", error)
-
-            // Clear tokens and redirect to login
-            this.client.tokenClient.clearTokens()
-
-            if (typeof window !== "undefined") {
-                this.login()
-            }
-
-            return null
-        }
+    getSessionToken(): string | null {
+        return this.client.tokenClient.getSessionToken()
     }
 
     /**

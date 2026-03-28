@@ -423,6 +423,84 @@ describe('Database', () => {
         })
     })
 
+    describe('upsert()', () => {
+        it('calls httpClient.post with body to upsert URL', async () => {
+            const body = { name: 'Test', status: 'active' }
+            mockHttpClient.post.mockResolvedValue({ id: '1', ...body })
+            await new Database(mockClient).from('accounts').upsert(body).execute()
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/accounts/data/upsert/',
+                body
+            )
+        })
+
+        it('builds correct upsert URL with array body', async () => {
+            const body = [{ name: 'A' }, { name: 'B' }]
+            mockHttpClient.post.mockResolvedValue({ data: body })
+            await new Database(mockClient).from('accounts').upsert(body).execute()
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/accounts/data/upsert/',
+                body
+            )
+        })
+    })
+
+    describe('bulkUpdate()', () => {
+        it('calls httpClient.patch with array body without recordId', async () => {
+            const body = [{ id: '1', status: 'inactive' }, { id: '2', status: 'active' }]
+            mockHttpClient.patch.mockResolvedValue({ data: body })
+            await new Database(mockClient).from('accounts').bulkUpdate(body).execute()
+            expect(mockHttpClient.patch).toHaveBeenCalledWith(
+                'api/apps/test-app/datatables/accounts/data/',
+                body
+            )
+        })
+
+        it('does not throw without recordId when body is array', async () => {
+            const body = [{ id: '1', name: 'Updated' }]
+            mockHttpClient.patch.mockResolvedValue({ data: body })
+            await expect(
+                new Database(mockClient).from('accounts').bulkUpdate(body).execute()
+            ).resolves.toBeDefined()
+        })
+    })
+
+    describe('bulkDelete()', () => {
+        it('calls httpClient.delete with ids in query string', async () => {
+            mockHttpClient.delete.mockResolvedValue({ status: 'success' })
+            await new Database(mockClient).from('accounts').bulkDelete(['1']).execute()
+            expect(mockHttpClient.delete).toHaveBeenCalledWith(
+                expect.stringContaining('ids=1')
+            )
+        })
+
+        it('joins multiple ids with comma', async () => {
+            mockHttpClient.delete.mockResolvedValue({ status: 'success' })
+            await new Database(mockClient).from('accounts').bulkDelete(['1', '2', '3']).execute()
+            expect(mockHttpClient.delete).toHaveBeenCalledWith(
+                expect.stringContaining('ids=1%2C2%2C3')
+            )
+        })
+    })
+
+    describe('deleteFiltered()', () => {
+        it('calls httpClient.delete with filter params in query string', async () => {
+            mockHttpClient.delete.mockResolvedValue({ status: 'success' })
+            await new Database(mockClient).from('accounts').filter('status', 'eq', 'inactive').deleteFiltered().execute()
+            const url = mockHttpClient.delete.mock.calls[0][0]
+            expect(url).toContain('status=inactive')
+            expect(url).not.toContain('/undefined/')
+        })
+
+        it('hits collection endpoint without recordId', async () => {
+            mockHttpClient.delete.mockResolvedValue({ status: 'success' })
+            await new Database(mockClient).from('accounts').filter('age', 'lt', 18).deleteFiltered().execute()
+            expect(mockHttpClient.delete).toHaveBeenCalledWith(
+                expect.stringContaining('api/apps/test-app/datatables/accounts/data/?')
+            )
+        })
+    })
+
     describe('edges()', () => {
         it('targets _edges table for list', async () => {
             mockHttpClient.get.mockResolvedValue({ edges: [], total: 0 })

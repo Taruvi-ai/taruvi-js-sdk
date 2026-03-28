@@ -22,8 +22,9 @@ export class Database<T = Record<string, unknown>> {
     private queryParams: DatabaseFilters | undefined
     private graphParams: GraphQueryParams
     private isEdges: boolean
+    private isUpsert: boolean
 
-    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, queryParams?: DatabaseFilters, graphParams: GraphQueryParams = {}, isEdges: boolean = false) {
+    constructor(client: Client, urlParams: UrlParams = {}, operation?: HttpMethod | undefined, body?: object | undefined, queryParams?: DatabaseFilters, graphParams: GraphQueryParams = {}, isEdges: boolean = false, isUpsert: boolean = false) {
         this.client = client
         this.urlParams = urlParams
         this.operation = operation
@@ -32,6 +33,7 @@ export class Database<T = Record<string, unknown>> {
         this.queryParams = queryParams
         this.graphParams = graphParams
         this.isEdges = isEdges
+        this.isUpsert = isUpsert
     }
 
     from<U = Record<string, unknown>>(dataTables: string): Database<U> {
@@ -135,7 +137,15 @@ export class Database<T = Record<string, unknown>> {
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
+    upsert(body: Partial<T> | Partial<T>[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges, true)
+    }
+
     update(body: Partial<T> | EdgeRequest): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
+    }
+
+    bulkUpdate(body: Partial<T>[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
@@ -145,6 +155,17 @@ export class Database<T = Record<string, unknown>> {
             return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, body, this.queryParams, { ...this.graphParams }, this.isEdges)
         }
         return new Database<T>(this.client, { ...this.urlParams, recordId: recordIdOrEdgeIds }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
+    }
+
+    bulkDelete(ids: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, {
+            ...this.queryParams,
+            ids: ids.join(',')
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
+    deleteFiltered(): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
     async first(): Promise<T | null> {
@@ -175,6 +196,7 @@ export class Database<T = Record<string, unknown>> {
         const base = DatabaseRoutes.baseUrl(this.config.appSlug) +
             DatabaseRoutes.dataTables(tableName) +
             (this.urlParams.recordId ? DatabaseRoutes.recordId(this.urlParams.recordId) : '') +
+            (this.isUpsert ? DatabaseRoutes.upsert() : '') +
             '/'
 
         // Merge database filters and graph params into one query string
@@ -195,7 +217,7 @@ export class Database<T = Record<string, unknown>> {
                 return await this.client.httpClient.post(url, this.body)
 
             case HttpMethod.PATCH:
-                if (!this.urlParams.recordId) {
+                if (!this.urlParams.recordId && !Array.isArray(this.body)) {
                     throw new Error('PATCH operation requires a record ID.')
                 }
                 return await this.client.httpClient.patch(url, this.body)

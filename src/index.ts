@@ -2,7 +2,7 @@
 export { Client } from "./client.js"
 
 // Export error classes
-export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError } from "./lib-internal/errors/index.js"
+export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, RateLimitError } from "./lib-internal/errors/index.js"
 export { ErrorCode } from "./lib-internal/errors/index.js"
 export type { ErrorResponseBody } from "./lib-internal/errors/index.js"
 
