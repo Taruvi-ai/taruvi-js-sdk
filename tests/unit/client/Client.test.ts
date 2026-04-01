@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Client } from '../../../src/client.js'
+import packageJson from '../../../package.json' with { type: 'json' }
 
 describe('Client', () => {
+    const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+
     beforeEach(() => {
         vi.clearAllMocks()
+    })
+
+    afterEach(() => {
+        consoleInfoSpy.mockClear()
     })
 
     describe('constructor', () => {
@@ -28,6 +35,16 @@ describe('Client', () => {
                 apiUrl: 'https://api.test.com'
             })
             expect(client).toBeInstanceOf(Client)
+        })
+
+        it('logs the sdk version when initialized', () => {
+            new Client({
+                apiKey: 'test-key',
+                appSlug: 'test-app',
+                apiUrl: 'https://api.test.com'
+            })
+
+            expect(consoleInfoSpy).toHaveBeenCalledWith(`Taruvi SDK v${packageJson.version} initialized`)
         })
 
         it('initializes httpClient and tokenClient', () => {

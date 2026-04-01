@@ -19,7 +19,7 @@ export class HttpClient {
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
         this.config = config
         this.tokenClient = tokenClient
-        this.axiosInstance = axios.create({ baseURL: config.apiUrl })
+        this.axiosInstance = axios.create({ baseURL: config.apiUrl, withCredentials: true })
         this.setupInterceptors()
     }
 

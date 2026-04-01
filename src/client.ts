@@ -1,6 +1,7 @@
 import { HttpClient } from "./lib-internal/http/HttpClient.js";
 import { TokenClient, type AuthTokens } from "./lib-internal/token/TokenClient.js";
 import type { TaruviConfig } from "./types.js";
+import packageJson from "../package.json" with { type: "json" };
 
 export class Client {
     private readonly config: TaruviConfig
@@ -30,6 +31,8 @@ export class Client {
 
         // Check URL hash for tokens (OAuth callback)
         this.extractTokensFromUrl()
+
+        console.info(`Taruvi SDK v${packageJson.version} initialized`)
     }
 
     /**
