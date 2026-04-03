@@ -52,6 +52,10 @@ export class Storage {
     }
 
     download(path: string): Storage {
+        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET)
+    }
+
+    metadata(path: string): Storage {
         return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, undefined, { metadata: 'true' })
     }
 
@@ -118,8 +122,10 @@ export class Storage {
                 return await this.client.httpClient.delete<T>(url)
 
             case HttpMethod.GET:
-            default:
-                return await this.client.httpClient.get<T>(url)
+            default: {
+                const isDownload = this.urlParams.path && !this.queryParams?.metadata
+                return await this.client.httpClient.get<T>(url, isDownload ? { responseType: 'blob' } : undefined)
+            }
         }
     }
 }

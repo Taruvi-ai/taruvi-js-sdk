@@ -66,10 +66,12 @@ export class HttpClient {
         throw error
     }
 
-    async get<T>(endpoint: string): Promise<T> {
+    async get<T>(endpoint: string, options?: { responseType?: 'json' | 'blob' }): Promise<T> {
         try {
-            const { data } = await this.axiosInstance.get<T>(`/${endpoint}`)
-            return data
+            const { data } = await this.axiosInstance.get<T>(`/${endpoint}`, {
+                ...(options?.responseType && { responseType: options.responseType }),
+            })
+            return data as T
         } catch (error) {
             this.handleError(error)
         }
