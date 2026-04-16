@@ -7,7 +7,7 @@ import type { ErrorResponseBody } from "../errors/index.js";
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
  * Sends session token via X-Session-Token header.
- * Clears tokens on 401/403 auth failures.
+ * Clears tokens on 401 auth failures.
  *
  * @internal
  */
@@ -37,12 +37,14 @@ export class HttpClient {
             return config
         })
 
-        // Response interceptor: clear tokens on auth failure
+        // Response interceptor: clear tokens on authentication failure
+        // Only 401 (Unauthorized) means the session is invalid
+        // 403 (Forbidden) means authenticated but lacking permission — don't clear tokens
         this.axiosInstance.interceptors.response.use(
             (response) => response,
             (error: AxiosError) => {
                 const status = error.response?.status
-                if (status === 401 || status === 403) {
+                if (status === 401) {
                     this.tokenClient.clearTokens()
                 }
                 return Promise.reject(error)
