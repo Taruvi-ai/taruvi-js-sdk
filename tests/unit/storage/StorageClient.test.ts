@@ -32,7 +32,7 @@ describe('Storage', () => {
         it('applies search filter', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').filter({ search: 'invoice' }).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('search=invoice'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('search=invoice'), undefined)
         })
 
         it('applies size filters', async () => {
@@ -46,19 +46,19 @@ describe('Storage', () => {
         it('applies date filters', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').filter({ created_at__gte: '2024-01-01' }).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('created_at__gte=2024-01-01'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('created_at__gte=2024-01-01'), undefined)
         })
 
         it('applies mimetype filter', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').filter({ mimetype: 'application/pdf' }).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('mimetype=application%2Fpdf'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('mimetype=application%2Fpdf'), undefined)
         })
 
         it('applies visibility filter', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').filter({ visibility: 'public' }).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('visibility=public'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('visibility=public'), undefined)
         })
 
         it('applies pagination filters', async () => {
@@ -72,7 +72,7 @@ describe('Storage', () => {
         it('applies ordering filter', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').filter({ ordering: '-created_at' }).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=-created_at'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=-created_at'), undefined)
         })
     })
 
@@ -80,7 +80,7 @@ describe('Storage', () => {
         it('calls httpClient.get with encoded path', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('path/to/file.pdf').execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path%2Fto%2Ffile.pdf'))
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path%2Fto%2Ffile.pdf'), { responseType: 'blob' })
         })
     })
 
@@ -141,14 +141,15 @@ describe('Storage', () => {
         it('builds correct base URL with app slug and bucket', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Storage(mockClient).from('documents').execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/storage/buckets/documents/objects/')
+            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/storage/buckets/documents/objects/', undefined)
         })
 
         it('builds correct URL for download with encoded path', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('folder/file name.pdf').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(
-                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/?metadata=true'
+                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/',
+                { responseType: 'blob' }
             )
         })
 

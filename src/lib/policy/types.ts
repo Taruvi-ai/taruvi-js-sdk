@@ -13,8 +13,7 @@ export type Resource = {
 }
 
 export type Resources = {
-    entityType: string
-    tableName: string
+    resource: string
     recordId: string
     attributes: Record<string, unknown>
     actions: string[]

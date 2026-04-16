@@ -16,7 +16,7 @@ export class Policy {
         const body = {
             resources: resources.map(r => ({
                 resource: {
-                    kind: `${r.entityType}:${r.tableName}`,
+                    kind: r.resource,
                     id: r.recordId,
                     attr: r.attributes || {}
                 },

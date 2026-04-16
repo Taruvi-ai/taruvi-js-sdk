@@ -144,8 +144,9 @@ export class Database<T = Record<string, unknown>> {
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    upsert(body: Partial<T> | Partial<T>[]): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges, true)
+    upsert(body: Partial<T> | Partial<T>[], uniqueFields?: string[]): Database<T> {
+        const qp = uniqueFields?.length ? { ...this.queryParams, unique_fields: uniqueFields.join(',') } : this.queryParams
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, qp, { ...this.graphParams }, this.isEdges, true)
     }
 
     update(body: Partial<T> | EdgeRequest): Database<T> {

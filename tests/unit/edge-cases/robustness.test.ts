@@ -132,7 +132,7 @@ describe('Encoding edge cases', () => {
     it('handles storage bucket with hyphens', async () => {
         mockHttpClient.get.mockResolvedValue([])
         await new Storage(mockClient).from('my-bucket-name').execute()
-        expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('/buckets/my-bucket-name/'))
+        expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('/buckets/my-bucket-name/'), undefined)
     })
 
     it('handles empty string filter value', async () => {

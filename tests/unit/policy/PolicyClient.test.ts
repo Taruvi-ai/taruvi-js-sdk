@@ -24,8 +24,7 @@ describe('Policy', () => {
             const policy = new Policy(mockClient)
             const result = await policy.checkResource([
                 {
-                    entityType: 'crm',
-                    tableName: 'accounts',
+                    resource: 'crm:accounts',
                     recordId: 'record-123',
                     attributes: { owner_id: 'user-456' },
                     actions: ['read']
@@ -60,15 +59,13 @@ describe('Policy', () => {
             const policy = new Policy(mockClient)
             await policy.checkResource([
                 {
-                    entityType: 'crm',
-                    tableName: 'accounts',
+                    resource: 'crm:accounts',
                     recordId: 'acc-1',
                     attributes: {},
                     actions: ['read', 'update']
                 },
                 {
-                    entityType: 'docs',
-                    tableName: 'documents',
+                    resource: 'docs:documents',
                     recordId: 'doc-1',
                     attributes: {},
                     actions: ['delete']
@@ -98,8 +95,7 @@ describe('Policy', () => {
             const policy = new Policy(mockClient)
             await policy.checkResource([
                 {
-                    entityType: 'crm',
-                    tableName: 'contacts',
+                    resource: 'crm:contacts',
                     recordId: 'contact-1',
                     attributes: {},
                     actions: ['read']
