@@ -107,6 +107,13 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
+    allowedActions(actions: string[]): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            allowed_actions: actions.join(',')
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
     aggregate(...expressions: string[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
