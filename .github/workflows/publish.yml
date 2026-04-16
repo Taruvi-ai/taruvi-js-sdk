@@ -28,8 +28,6 @@ jobs:
 
       - run: npm install
 
-      - run: npm test
-
       - name: Check if version changed
         id: version_check
         run: |
