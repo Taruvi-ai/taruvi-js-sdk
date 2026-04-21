@@ -70,6 +70,7 @@ export interface UserListFilters {
     is_staff?: boolean
     is_superuser?: boolean
     is_deleted?: boolean
+    roles?: string
     ordering?: string
     page?: number
     page_size?: number
