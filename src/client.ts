@@ -32,7 +32,7 @@ export class Client {
         // Check URL hash for tokens (OAuth callback)
         this.extractTokensFromUrl()
 
-        console.info(`Taruvi SDK v${packageJson.version} initialised`)
+        console.info(`Taruvi SDK v${packageJson.version} initialized`)
     }
 
     /**
