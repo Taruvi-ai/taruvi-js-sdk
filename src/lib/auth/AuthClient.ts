@@ -1,6 +1,7 @@
 import type { Client } from "../../client.js";
 import type { TaruviResponse } from "../../types.js";
 import type { UserData } from "../users/types.js";
+import { AuthRoutes } from "../../lib-internal/routes/AuthRoutes.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 
 /**
@@ -94,10 +95,31 @@ export class Auth {
     }
 
     /**
-     * Check if user is authenticated (has session token)
+     * Check if a session token exists locally (does not validate with server)
      */
-    isUserAuthenticated(): boolean {
+    hasToken(): boolean {
         return this.client.tokenClient.isAuthenticated()
+    }
+
+    /**
+     * Check if user is authenticated by validating session with the server
+     */
+    async isUserAuthenticated(): Promise<boolean> {
+        if (!this.hasToken()) return false
+        try {
+            await this.validateSession()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /**
+     * Validate current session token with auth session endpoint.
+     * HttpClient injects X-Session-Token automatically.
+     */
+    async validateSession(): Promise<void> {
+        await this.client.httpClient.get(AuthRoutes.session())
     }
 
     /**
@@ -112,7 +134,7 @@ export class Auth {
      * @returns Promise with user data or null if not authenticated
      */
     async getCurrentUser(): Promise<TaruviResponse<UserData> | null> {
-        if (!this.isUserAuthenticated()) {
+        if (!this.hasToken()) {
             return null
         }
 
