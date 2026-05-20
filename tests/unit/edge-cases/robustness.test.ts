@@ -100,26 +100,26 @@ describe('Encoding edge cases', () => {
 
     it('encodes filter value with spaces', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Database(mockClient).from('accounts').filter('name', 'eq', 'John Doe').execute()
+        await new Database(mockClient).from('accounts').filters('name', 'eq', 'John Doe').execute()
         expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('name=John+Doe'))
     })
 
     it('encodes filter value with special characters', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Database(mockClient).from('accounts').filter('email', 'eq', 'user@example.com').execute()
+        await new Database(mockClient).from('accounts').filters('email', 'eq', 'user@example.com').execute()
         expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('email=user%40example.com'))
     })
 
     it('encodes filter value with ampersand', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Database(mockClient).from('accounts').filter('company', 'eq', 'A&B Corp').execute()
+        await new Database(mockClient).from('accounts').filters('company', 'eq', 'A&B Corp').execute()
         const url = mockHttpClient.get.mock.calls[0][0]
         expect(url).toContain('company=A%26B')
     })
 
     it('handles unicode in filter values', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Database(mockClient).from('accounts').filter('name', 'icontains', '日本語').execute()
+        await new Database(mockClient).from('accounts').filters('name', 'icontains', '日本語').execute()
         expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('name__icontains='))
     })
 
@@ -137,7 +137,7 @@ describe('Encoding edge cases', () => {
 
     it('handles empty string filter value', async () => {
         mockHttpClient.get.mockResolvedValue([])
-        await new Database(mockClient).from('accounts').filter('status', 'eq', '').execute()
+        await new Database(mockClient).from('accounts').filters('status', 'eq', '').execute()
         const url = mockHttpClient.get.mock.calls[0][0]
         expect(url).toContain('status=')
     })
@@ -149,8 +149,8 @@ describe('Builder immutability', () => {
     it('Database: chaining does not mutate original instance', async () => {
         mockHttpClient.get.mockResolvedValue([])
         const base = new Database(mockClient).from('accounts')
-        const filtered = base.filter('status', 'eq', 'active')
-        const sorted = base.sort('name', 'asc')
+        const filtered = base.filters('status', 'eq', 'active')
+        const sorted = base.orderBy('name', 'asc')
 
         await filtered.execute()
         const filteredUrl = mockHttpClient.get.mock.calls[0][0]

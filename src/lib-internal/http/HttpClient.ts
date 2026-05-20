@@ -12,12 +12,10 @@ import type { ErrorResponseBody } from "../errors/index.js";
  * @internal
  */
 export class HttpClient {
-    private config: TaruviConfig
     private tokenClient: TokenClient
     private axiosInstance: AxiosInstance
 
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
-        this.config = config
         this.tokenClient = tokenClient
         this.axiosInstance = axios.create({ baseURL: config.apiUrl, withCredentials: true })
         this.setupInterceptors()

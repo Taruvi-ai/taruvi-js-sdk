@@ -2,7 +2,8 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest, BackendFilterTreeRoot } from "./types.js";
+import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
 interface GraphQueryParams {
@@ -62,17 +63,65 @@ export class Database<T = Record<string, unknown>> {
     }
 
     // Filter & query methods
-    filter(field: string, operator: FilterOperator, value: string | number | boolean | (string | number)[]): Database<T> {
-        const filterKey = operator === 'eq' ? field : `${field}__${operator}`
-        const filterValue = Array.isArray(value) ? value.join(',') : value
-        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
-            ...this.queryParams,
-            [filterKey]: filterValue
-        }, { ...this.graphParams }, this.isEdges)
+    /**
+     * JSON filter tree for the `filters` query param. Must match the platform contract:
+     * root is an array of logical nodes `{ operator: "and" | "or", value: [...] }`; leaves are
+     * `{ field, operator, value }` where `operator` is a **backend** token (`contains` = case-insensitive
+     * substring, `containss` = case-sensitive, `eq`, `in`, …). The SDK only JSON-stringifies this value.
+     */
+    filters(tree: BackendFilterTreeRoot): Database<T>
+    /**
+     * DRF-style flat filter: `field` or `field__operator` query keys.
+     */
+    filters(field: string, operator: FilterOperator, value: string | number | boolean | (string | number | boolean)[]): Database<T>
+    filters(
+        arg0: string | BackendFilterTreeRoot,
+        arg1?: FilterOperator,
+        arg2?: string | number | boolean | (string | number | boolean)[]
+    ): Database<T> {
+        if (typeof arg0 === 'string' && arg1 !== undefined && arg2 !== undefined) {
+            const field = arg0
+            const operator = arg1
+            const value = arg2
+            const filterKey = operator === 'eq' ? field : `${field}__${operator}`
+            const filterValue = Array.isArray(value) ? value.join(',') : value
+            return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+                ...this.queryParams,
+                [filterKey]: filterValue
+            }, { ...this.graphParams }, this.isEdges)
+        }
+
+        if (arg1 === undefined && arg2 === undefined && isBackendFilterTreeRoot(arg0)) {
+            return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+                ...this.queryParams,
+                filters: JSON.stringify(arg0)
+            }, { ...this.graphParams }, this.isEdges)
+        }
+
+        throw new TypeError(
+            'Database.filters: use filters(tree) with a root array of { operator: "and"|"or", value: [...] }, or filters(field, operator, value).'
+        )
     }
 
-    sort(field: string, order: SortOrder = 'asc'): Database<T> {
-        const ordering = order === 'desc' ? `-${field}` : field
+    /**
+     * Sets the `ordering` query param (DRF-style: `-field` for desc, comma-separated for multiple).
+     * - `orderBy('created_at', 'desc')` — one column (optional second arg defaults to `'asc'`)
+     * - `orderBy([{ field: 'salary', order: 'desc' }, { field: 'hire_date' }])` — multiple columns
+     * - `orderBy('-salary,hire_date')` — raw string (e.g. from `convertRefineSorters`); omit the second arg
+     */
+    orderBy(
+        fieldOrFields: string | Array<{ field: string; order?: SortOrder }>,
+        order?: SortOrder
+    ): Database<T> {
+        let ordering: string
+        if (typeof fieldOrFields === 'string') {
+            const o = order ?? 'asc'
+            ordering = o === 'desc' ? `-${fieldOrFields}` : fieldOrFields
+        } else {
+            ordering = fieldOrFields
+                .map(({ field, order: o = 'asc' }) => (o === 'desc' ? `-${field}` : field))
+                .join(',')
+        }
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             ordering
@@ -98,6 +147,11 @@ export class Database<T = Record<string, unknown>> {
             ...this.queryParams,
             populate: populate.join(',')
         }, { ...this.graphParams }, this.isEdges)
+    }
+
+    /** Populate all first-level relations (`?populate=*`). */
+    populateAll(): Database<T> {
+        return this.populate(['*'])
     }
 
     search(query: string): Database<T> {

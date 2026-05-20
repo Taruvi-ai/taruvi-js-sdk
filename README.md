@@ -17,7 +17,7 @@ Recent updates to the SDK:
 - **App Service**: New service to retrieve app roles with `roles()` method.
 - **User Types**: Added `UserCreateRequest`, `UserResponse`, and `UserDataResponse` types for user management.
 - **Auth Service**: Web UI Flow with `login()`, `signup()`, `logout()` methods that redirect to backend pages. Token refresh with rotation support, `getCurrentUser()` for JWT decoding.
-- **Database Service**: Added `create()` method for creating records. Added `populate()` method for eager loading related records. Comprehensive filter support with Django-style operators (`__gte`, `__lte`, `__icontains`, etc.).
+- **Database Service**: Added `create()` method for creating records. Added `populate()` method for eager loading related records. Comprehensive filter support with Django-style operators (`__gte`, `__lte`, `__icontains`, etc.). Use **`orderBy()`** for sorting: one field (`orderBy('created_at', 'desc')`), multiple fields (`orderBy([{ field, order }])`), or a raw `ordering` string (`orderBy('-salary,hire_date')`). Hierarchy traversal uses **`.include('descendants' | 'ancestors' | 'both')`** — not `FilterOperator`. Import **`PgRangeValue`** for typed PG range columns in row data.
 - **Storage Service**: Added `download()` method. Enhanced filter support with size, date, MIME type, visibility filters. `delete()` now accepts array of paths for bulk deletion.
 - **Client**: Automatic token extraction from URL hash after OAuth callback - no manual token handling needed.
 - **Types**: Comprehensive `StorageFilters` and `DatabaseFilters` interfaces with full operator support.
@@ -363,43 +363,52 @@ const db = new Database(taruviClient)
 await db.from("accounts").delete("record-id").execute()
 ```
 
-### Filter Records
+### Filter records
+
+`Database` supports **DRF-style flat filters** (`filters(field, operator, value)`) and a **JSON filter tree** sent as the `filters` query param (`filters(tree)`).
 
 ```typescript
 const db = new Database(taruviClient)
 
-// Simple field filters
+// Flat: one condition per call (chain for AND)
 const filtered = await db
   .from("accounts")
-  .filter({
-    status: "active",
-    country: "USA"
-  })
+  .filters("status", "eq", "active")
+  .filters("country", "eq", "USA")
   .execute()
 
-// Advanced filters with operators
+// Flat: operators map to `field__suffix` query keys
 const advanced = await db
   .from("accounts")
-  .filter({
-    age__gte: 18,           // age >= 18
-    age__lt: 65,            // age < 65
-    name__icontains: "john", // case-insensitive contains
-    created_at__gte: "2024-01-01",
-    ordering: "-created_at"  // Sort by created_at descending
-  })
+  .filters("age", "gte", 18)
+  .filters("age", "lt", 65)
+  .filters("name", "icontains", "john")
+  .filters("created_at", "gte", "2024-01-01")
+  .orderBy("created_at", "desc")
   .execute()
 
-// Pagination
+// Pagination (separate methods)
 const paginated = await db
   .from("accounts")
-  .filter({
-    page: 1,
-    pageSize: 20
-  })
+  .page(1)
+  .pageSize(20)
   .execute()
+
+// JSON tree → `?filters=<url-encoded JSON>` (e.g. from Refine / your UI)
+import type { BackendFilterTreeRoot } from "@taruvi/sdk"
+const tree: BackendFilterTreeRoot = [
+  {
+    operator: "and",
+    value: [
+      { field: "is_active", operator: "eq", value: true },
+      { field: "hire_date", operator: "lt", value: "2021-01-01" },
+    ],
+  },
+]
+await db.from("employees").filters(tree).execute()
 ```
 
-### Populate Related Records
+### Populate related records
 
 Use `populate()` to eager load related records (foreign key relationships):
 
@@ -422,21 +431,20 @@ const invoices = await db
   .populate(["customer", "created_by", "items"])
   .execute()
 
-// Combine with filters
+// Combine with flat filters + populate
 const recentOrders = await db
   .from("orders")
-  .filter({
-    status: "completed",
-    created_at__gte: "2024-01-01",
-    ordering: "-created_at"
-  })
+  .filters("status", "eq", "completed")
+  .filters("created_at", "gte", "2024-01-01")
+  .orderBy("created_at", "desc")
   .populate(["customer", "product"])
   .execute()
 
-// Combine with pagination
+// Combine with pagination + populate
 const paginatedOrders = await db
   .from("orders")
-  .filter({ page: 1, pageSize: 10 })
+  .page(1)
+  .pageSize(10)
   .populate(["customer"])
   .execute()
 ```
@@ -1285,8 +1293,8 @@ All query-building services use method chaining:
 // Database
 const db = new Database(taruviClient)
 await db.from("table").get("id").update(data).execute()
-await db.from("table").filter({ status: "active" }).execute()
-await db.from("table").filter({ page: 1 }).populate(["related_field"]).execute()
+await db.from("table").filters("status", "eq", "active").execute()
+await db.from("table").page(1).populate(["related_field"]).execute()
 await db.from("table").create({ name: "New" }).execute()
 
 // Storage
