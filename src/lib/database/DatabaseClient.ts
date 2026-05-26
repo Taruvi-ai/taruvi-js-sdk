@@ -161,6 +161,14 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
+    /** Restrict SELECT to named columns (`?fields=a,b,c`). */
+    fields(columns: string): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            fields: columns
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
     allowedActions(actions: string[]): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
