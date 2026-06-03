@@ -35,8 +35,11 @@ export type { RoleData, AppSettingsData, RoleResponse, RolesListResponse, AppSet
 export type { FunctionRequest, FunctionResponse, FunctionInvocation } from "./lib/functions/types.js"
 
 // Database types
-export type { DatabaseRequest, DatabaseResponse, DatabaseSingleResponse, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeResponse, EdgeDeleteRequest, PgRangeValue, BackendFilterLeafNode, BackendFilterLogicalNode, BackendFilterNode, BackendFilterTreeRoot } from "./lib/database/types.js"
+export type { DatabaseRequest, DatabaseResponse, DatabaseSingleResponse, FilterOperator, GraphFormat, EdgeRequest, EdgeResponse, EdgeDeleteRequest, PgRangeValue, BackendFilterLeafNode, BackendFilterLogicalNode, BackendFilterNode, BackendFilterTreeRoot } from "./lib/database/types.js"
 export { isBackendFilterTreeRoot } from "./lib/database/types.js"
+
+// Enums / runtime constants
+export { SortOrder, DataFormat, GraphInclude, Visibility, MimeTypeCategory } from "./utils/enums.js"
 
 // Storage types
 export type { StorageRequest, StorageUpdateRequest, StorageObject, StorageResponse, StorageListResponse, StorageUploadBatchResponse, StorageDeleteBatchResponse } from "./lib/storage/types.js"

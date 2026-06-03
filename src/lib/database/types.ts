@@ -1,6 +1,10 @@
 import type { Client } from "../../client.js"
 import { HttpMethod } from "../../lib-internal/http/types.js"
 import type { TaruviResponse } from "../../types.js"
+import type { SortOrder, GraphInclude } from "../../utils/enums.js"
+
+export type { SortOrder, GraphInclude }
+export type { DataFormat } from "../../utils/enums.js"
 
 export type DatabaseOperation = HttpMethod
 
@@ -62,8 +66,6 @@ export type FilterOperator =
     | 'rstrictleft'    // Range column << [lower, upper]
     | 'rstrictright'   // Range column >> [lower, upper]
 
-export type SortOrder = 'asc' | 'desc'
-
 // Internal types
 export interface UrlParams {
     appSlug?: string
@@ -86,8 +88,7 @@ export type DatabaseResponse<T = unknown> = TaruviResponse<T[]>
 export type DatabaseSingleResponse<T = unknown> = TaruviResponse<T>
 
 // Graph traversal types
-export type GraphInclude = 'descendants' | 'ancestors' | 'both'
-export type GraphFormat = 'tree' | 'graph'
+export type GraphFormat = 'flat' | 'tree' | 'graph'
 
 // Edge types
 export interface EdgeRequest {
