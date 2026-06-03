@@ -41,9 +41,9 @@ Generic row type: `Database<T>`. Entry: `new Database(client)`.
 |--------|---------|-------------|
 | `filters(tree)` | `Database<T>` | JSON filter tree (`filters` query param) |
 | `filters(field, operator, value)` | `Database<T>` | Flat DRF-style filter (`field__operator`) |
-| `orderBy(field, order?)` | `Database<T>` | Sort one column (`asc` / `desc`). Accumulates on chain. |
-| `orderBy(fields[])` | `Database<T>` | Sort multiple columns |
-| `orderBy(rawString)` | `Database<T>` | Raw `ordering` string (e.g. `-salary,hire_date`) |
+| `sort(field, order?)` | `Database<T>` | Sort one column (`asc` / `desc`). Accumulates on chain. |
+| `sort(fields[])` | `Database<T>` | Sort multiple columns |
+| `sort(rawString)` | `Database<T>` | Raw `ordering` string (e.g. `-salary,hire_date`) |
 | `page(num)` | `Database<T>` | Page number |
 | `pageSize(size)` | `Database<T>` | Page size |
 | `populate(relations)` | `Database<T>` | Eager-load relations (comma-joined) |

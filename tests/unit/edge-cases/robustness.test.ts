@@ -150,7 +150,7 @@ describe('Builder immutability', () => {
         mockHttpClient.get.mockResolvedValue([])
         const base = new Database(mockClient).from('accounts')
         const filtered = base.filters('status', 'eq', 'active')
-        const sorted = base.orderBy('name', 'asc')
+        const sorted = base.sort('name', 'asc')
 
         await filtered.execute()
         const filteredUrl = mockHttpClient.get.mock.calls[0][0]

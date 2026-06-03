@@ -141,22 +141,22 @@ describe('Database', () => {
         })
     })
 
-    describe('orderBy()', () => {
+    describe('sort()', () => {
         it('asc order uses field name without prefix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').orderBy('created_at', 'asc').execute()
+            await new Database(mockClient).from('accounts').sort('created_at', 'asc').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=created_at'))
         })
 
         it('desc order adds - prefix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').orderBy('created_at', 'desc').execute()
+            await new Database(mockClient).from('accounts').sort('created_at', 'desc').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=-created_at'))
         })
 
         it('defaults to asc when order not specified', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').orderBy('name').execute()
+            await new Database(mockClient).from('accounts').sort('name').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringMatching(/ordering=name(?!-)/))
         })
 
@@ -164,7 +164,7 @@ describe('Database', () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Database(mockClient)
                 .from('accounts')
-                .orderBy([
+                .sort([
                     { field: 'salary', order: 'desc' },
                     { field: 'hire_date', order: 'asc' },
                 ])
@@ -176,7 +176,7 @@ describe('Database', () => {
 
         it('accepts pre-built ordering string', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').orderBy('-a,b').execute()
+            await new Database(mockClient).from('accounts').sort('-a,b').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=-a%2Cb'))
         })
 
@@ -185,7 +185,7 @@ describe('Database', () => {
             await new Database(mockClient)
                 .from('accounts')
                 .filters('status', 'eq', 'active')
-                .orderBy([{ field: 'name', order: 'asc' }])
+                .sort([{ field: 'name', order: 'asc' }])
                 .execute()
             const url = mockHttpClient.get.mock.calls[0][0] as string
             expect(url).toContain('status=active')

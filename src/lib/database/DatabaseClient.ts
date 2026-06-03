@@ -105,11 +105,11 @@ export class Database<T = Record<string, unknown>> {
 
     /**
      * Sets the `ordering` query param (DRF-style: `-field` for desc, comma-separated for multiple).
-     * - `orderBy('created_at', 'desc')` — one column (optional second arg defaults to `'asc'`)
-     * - `orderBy([{ field: 'salary', order: 'desc' }, { field: 'hire_date' }])` — multiple columns
-     * - `orderBy('-salary,hire_date')` — raw string (e.g. from `convertRefineSorters`); omit the second arg
+     * - `sort('created_at', 'desc')` — one column (optional second arg defaults to `'asc'`)
+     * - `sort([{ field: 'salary', order: 'desc' }, { field: 'hire_date' }])` — multiple columns
+     * - `sort('-salary,hire_date')` — raw string (e.g. from `convertRefineSorters`); omit the second arg
      */
-    orderBy(
+    sort(
         fieldOrFields: string | Array<{ field: string; order?: SortOrder }>,
         order?: SortOrder
     ): Database<T> {

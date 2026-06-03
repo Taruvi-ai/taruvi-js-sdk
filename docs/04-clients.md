@@ -42,7 +42,7 @@ const client = new Client({ apiKey, appSlug, apiUrl })
 
 **Typical flows:**
 
-- List: `.from('accounts').filters(...).orderBy(...).page(1).execute()`
+- List: `.from('accounts').filters(...).sort(...).page(1).execute()`
 - Single row: `.from('accounts').get('id').execute()` or `.first()`
 - Create: `.from('accounts').create({ ... }).execute()`
 - Graph: `.from('employees').get('1').include('descendants').depth(3).execute()`

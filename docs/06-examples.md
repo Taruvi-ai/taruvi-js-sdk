@@ -30,7 +30,7 @@ const response = await new Database(client)
   .from('accounts')
   .filters('status', 'eq', 'active')
   .filters('age', 'gte', 18)
-  .orderBy('created_at', 'desc')
+  .sort('created_at', 'desc')
   .page(1)
   .pageSize(20)
   .populate(['customer', 'items'])
@@ -168,7 +168,7 @@ const base = new Database(client).from('accounts')
 
 const activeUsers = base.filters('status', 'eq', 'active')
 const page2 = base.page(2)
-const sortedByName = base.orderBy('name', 'asc')
+const sortedByName = base.sort('name', 'asc')
 
 await activeUsers.execute()   // ?status=active
 await page2.execute()         // ?page=2
@@ -180,8 +180,8 @@ Multi-sort via chaining — accumulates instead of overwriting:
 ```typescript
 const results = await new Database(client)
   .from('employees')
-  .orderBy('department', 'asc')
-  .orderBy('salary', 'desc')
+  .sort('department', 'asc')
+  .sort('salary', 'desc')
   .execute()
 // ?ordering=department,-salary
 ```
@@ -196,7 +196,7 @@ const report = await new Database(client)
   .groupBy('region')
   .having('sum_total__gte=10000')
   .having('count__gt=5')
-  .orderBy('sum_total', 'desc')
+  .sort('sum_total', 'desc')
   .execute()
 // ?_aggregate=sum(total),count(*)&_group_by=status,region&_having=sum_total__gte=10000,count__gt=5&ordering=-sum_total
 ```

@@ -49,7 +49,7 @@ This means:
 const base = new Database(client).from('accounts')
 
 const active = base.filters('status', 'eq', 'active')
-const sorted = base.orderBy('name', 'asc')
+const sorted = base.sort('name', 'asc')
 
 await active.execute()  // URL contains status=active, no ordering
 await sorted.execute()  // URL contains ordering=name, no status filter
@@ -63,13 +63,13 @@ Most builder methods **replace** the corresponding query param (e.g. `.page(2)` 
 
 | Method | Query param | Example |
 |--------|-------------|---------|
-| `orderBy` | `ordering` | `.orderBy('name', 'asc').orderBy('created_at', 'desc')` → `ordering=name,-created_at` |
+| `sort` | `ordering` | `.sort('name', 'asc').sort('created_at', 'desc')` → `ordering=name,-created_at` |
 | `aggregate` | `_aggregate` | `.aggregate('sum(salary)').aggregate('avg(age)')` → `_aggregate=sum(salary),avg(age)` |
 | `groupBy` | `_group_by` | `.groupBy('dept').groupBy('role')` → `_group_by=dept,role` |
 | `having` | `_having` | `.having('count__gt=5').having('sum_salary__gte=1000')` → `_having=count__gt=5,sum_salary__gte=1000` |
 | `allowedActions` | `allowed_actions` | `.allowedActions(['read']).allowedActions(['write'])` → `allowed_actions=read,write` |
 
-You can still pass everything in a single call (e.g. `orderBy([{field:'name'},{field:'created_at',order:'desc'}])`); accumulation simply makes incremental chaining safe.
+You can still pass everything in a single call (e.g. `sort([{field:'name'},{field:'created_at',order:'desc'}])`); accumulation simply makes incremental chaining safe.
 
 ## How the builder works
 
@@ -81,7 +81,7 @@ Chain methods only update internal state and return a new builder instance:
 new Database(client)
   → .from('accounts')           // sets table
   → .filters('status', 'eq', 'active')
-  → .orderBy('created_at', 'desc')
+  → .sort('created_at', 'desc')
   → .page(1).pageSize(20)
 ```
 
@@ -130,7 +130,7 @@ sequenceDiagram
 | State | Set by | Used for |
 |-------|--------|----------|
 | `urlParams` | `from`, `get`, `edges` | Table name, record ID |
-| `queryParams` | `filters`, `orderBy`, `page`, `populate`, … | Query string |
+| `queryParams` | `filters`, `sort`, `page`, `populate`, … | Query string |
 | `graphParams` | `include`, `depth`, `format`, `types` | Graph traversal |
 | `operation` | `get`, `create`, `update`, `delete`, … | HTTP method |
 | `body` | `create`, `update`, `delete` (edges) | Request payload |

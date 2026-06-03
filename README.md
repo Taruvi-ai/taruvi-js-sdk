@@ -34,7 +34,7 @@ const db = new Database(client)
 const response = await db
   .from('accounts')
   .filters('status', 'eq', 'active')
-  .orderBy('created_at', 'desc')
+  .sort('created_at', 'desc')
   .page(1)
   .pageSize(20)
   .execute()

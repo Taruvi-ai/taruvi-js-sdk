@@ -49,7 +49,7 @@ src/
 For builder clients (`Database`, `Storage`, `App`, `Secrets.get()`):
 
 - Return `new ClassName(...)` with spread of existing state + your change
-- If the param is comma-separated and chaining should accumulate (like `orderBy`, `aggregate`), append to existing value instead of replacing
+- If the param is comma-separated and chaining should accumulate (like `sort`, `aggregate`), append to existing value instead of replacing
 - If the param replaces on each call (like `page`, `search`), overwrite directly
 
 ## Conventions
