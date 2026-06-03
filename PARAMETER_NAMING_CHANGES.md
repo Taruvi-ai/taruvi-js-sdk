@@ -1,5 +1,7 @@
 # Parameter Naming Change: baseUrl → apiUrl
 
+> **Changelog / historical.** Use `apiUrl` in new code. User guide: **[docs/README.md](docs/README.md)**.
+
 **Date**: 2026-01-22  
 **Status**: ✅ Completed
 

@@ -113,15 +113,17 @@ export class Database<T = Record<string, unknown>> {
         fieldOrFields: string | Array<{ field: string; order?: SortOrder }>,
         order?: SortOrder
     ): Database<T> {
-        let ordering: string
+        let newOrdering: string
         if (typeof fieldOrFields === 'string') {
             const o = order ?? 'asc'
-            ordering = o === 'desc' ? `-${fieldOrFields}` : fieldOrFields
+            newOrdering = o === 'desc' ? `-${fieldOrFields}` : fieldOrFields
         } else {
-            ordering = fieldOrFields
+            newOrdering = fieldOrFields
                 .map(({ field, order: o = 'asc' }) => (o === 'desc' ? `-${field}` : field))
                 .join(',')
         }
+        const existing = this.queryParams?.ordering
+        const ordering = existing ? `${existing},${newOrdering}` : newOrdering
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             ordering
@@ -170,30 +172,41 @@ export class Database<T = Record<string, unknown>> {
     }
 
     allowedActions(actions: string[]): Database<T> {
+        const newValue = actions.join(',')
+        const existing = this.queryParams?.allowed_actions
+        const allowed_actions = existing ? `${existing},${newValue}` : newValue
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            allowed_actions: actions.join(',')
+            allowed_actions
         }, { ...this.graphParams }, this.isEdges)
     }
 
     aggregate(...expressions: string[]): Database<T> {
+        const newValue = expressions.join(',')
+        const existing = this.queryParams?._aggregate
+        const _aggregate = existing ? `${existing},${newValue}` : newValue
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _aggregate: expressions.join(',')
+            _aggregate
         }, { ...this.graphParams }, this.isEdges)
     }
 
     groupBy(...fields: string[]): Database<T> {
+        const newValue = fields.join(',')
+        const existing = this.queryParams?._group_by
+        const _group_by = existing ? `${existing},${newValue}` : newValue
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _group_by: fields.join(',')
+            _group_by
         }, { ...this.graphParams }, this.isEdges)
     }
 
     having(condition: string): Database<T> {
+        const existing = this.queryParams?._having
+        const _having = existing ? `${existing},${condition}` : condition
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _having: condition
+            _having
         }, { ...this.graphParams }, this.isEdges)
     }
 

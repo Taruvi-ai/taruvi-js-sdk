@@ -1,5 +1,7 @@
 # Module Naming Convention Changes - Completed
 
+> **Changelog / historical.** User guide: **[docs/README.md](docs/README.md)**.
+
 **Date**: 2026-01-22  
 **Status**: ✅ Completed
 

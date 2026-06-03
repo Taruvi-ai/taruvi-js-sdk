@@ -37,6 +37,11 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams, bucket }, undefined, undefined)
     }
 
+    getUrl(path: string): string {
+        if (!this.urlParams.bucket) throw new Error('Bucket is required. Call .from(bucketName) first.')
+        return `${this.config.apiUrl}/${StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket)}${StorageRoutes.path(path)}/`
+    }
+
     filter(filters: StorageFilters) {
         return new Storage(this.client, { ...this.urlParams }, undefined, undefined, filters)
     }

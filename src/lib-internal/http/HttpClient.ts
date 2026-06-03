@@ -23,7 +23,6 @@ export class HttpClient {
 
     private setupInterceptors(): void {
         // Request interceptor: attach session token
-        console.log("test")
         this.axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
             const isFormData = config.data instanceof FormData
             if (!isFormData) {

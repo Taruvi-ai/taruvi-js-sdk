@@ -1,86 +1,57 @@
-# Taruvi SDK - Usage Example
+# Taruvi SDK — Usage Example
 
-## New Pattern: Dependency Injection (No Singleton)
+> **Note:** For full documentation see **[docs/README.md](docs/README.md)**. This file only demonstrates dependency injection and basic setup.
 
-### Basic Usage
+## Dependency injection (no singleton)
 
 ```typescript
-import { Client, Auth, User, Database } from '@taruvi/sdk'
+import { Client, Auth, User, Database, Storage } from '@taruvi/sdk'
 
-// 1. Create the main client (can create multiple instances)
+// 1. Create the main client (you can create multiple instances)
 const client = new Client({
   apiKey: 'your-site-key',
   appSlug: 'my-app',
-  baseUrl: 'https://api.taruvi.com',
-  token: 'optional-initial-token' // optional
+  apiUrl: 'https://taruvi-site.taruvi.cloud',
+  token: 'optional-initial-session-token', // optional, useful on the server
 })
 
-// 2. Create only the clients you need (lazy initialization)
+// 2. Create only the service clients you need
 const auth = new Auth(client)
 const user = new User(client)
 const database = new Database(client)
+const storage = new Storage(client)
 
 // 3. Use the clients
 if (auth.isUserAuthenticated()) {
-  console.log('User is authenticated')
+  const currentUser = await auth.getCurrentUser()
+  console.log('User:', currentUser?.data)
 }
 
-const token = auth.signInWithSSO()
-console.log('Token:', token)
+await database
+  .from('accounts')
+  .filters('status', 'eq', 'active')
+  .execute()
 
-const userDetails = user.getUser()
-console.log('User:', userDetails)
-
-// Access token via User
-console.log('Current token:', user.token)
+await storage.from('documents').filter({ page: 1 }).execute()
 ```
 
-### Multiple Instances
-
-You can now create multiple instances for different environments or configs:
+## React pattern
 
 ```typescript
-const prodClient = new Client({
-  apiKey: 'prod-key',
-    appSlug: 'main-app',
-  baseUrl: 'https://api.taruvi.com'
-})
+// App.tsx — create once
+const taruviClient = new Client({ apiKey, appSlug, apiUrl })
 
-const devClient = new Client({
-  apiKey: 'dev-key',
-    appSlug: 'dev-app',
-  baseUrl: 'https://dev-api.taruvi.com'
-})
+// Pass to components or context
+<Dashboard taruviClient={taruviClient} />
 
-const prodAuth = new Auth(prodClient)
-const devAuth = new Auth(devClient)
-```
-
-### Benefits
-
-✅ **No singleton** - Multiple instances possible
-✅ **Lazy initialization** - Only create clients you need
-✅ **Better testability** - Easy to mock and test
-✅ **Explicit dependencies** - Clear what each client needs
-✅ **No global state** - No hidden global `taruvi` variable
-✅ **Tree-shakable** - Only bundle what you use
-
-### Internal Architecture
-
-The `taruvi` variable is no longer exported. Internal clients like `httpClient` and `tokenClient` are accessible only within the SDK through the `Client` instance passed to each client.
-
-```typescript
-// Inside Auth
-export class Auth {
-  private client: Client
-
-  constructor(client: Client) {
-    this.client = client
-  }
-
-  isUserAuthenticated(): boolean {
-    // Access internal tokenClient through the client instance
-    return !!this.client.tokenClient.getToken()
-  }
+// Component — construct services from client
+function Dashboard({ taruviClient }: { taruviClient: Client }) {
+  const db = new Database(taruviClient)
+  // ...
 }
 ```
+
+## See also
+
+- [docs/01-introduction.md](docs/01-introduction.md) — setup and DI in detail
+- [docs/06-examples.md](docs/06-examples.md) — chaining patterns
