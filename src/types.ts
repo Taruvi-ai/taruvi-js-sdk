@@ -93,6 +93,12 @@ export interface DatabaseFilters {
     _group_by?: string
     _having?: string
 
+    /**
+     * JSON filter tree for the `filters` query param (set via `Database.filters(tree)`).
+     * Do not use the flat `filters(field, …)` triple overload with `field === 'filters'`.
+     */
+    filters?: string
+
     // Dynamic filters - allows any field with operators
     [key: string]: string | number | boolean | undefined
 }

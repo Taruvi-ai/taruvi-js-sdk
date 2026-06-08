@@ -2,7 +2,8 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest, BackendFilterTreeRoot } from "./types.js";
+import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
 interface GraphQueryParams {
@@ -62,17 +63,67 @@ export class Database<T = Record<string, unknown>> {
     }
 
     // Filter & query methods
-    filter(field: string, operator: FilterOperator, value: string | number | boolean | (string | number)[]): Database<T> {
-        const filterKey = operator === 'eq' ? field : `${field}__${operator}`
-        const filterValue = Array.isArray(value) ? value.join(',') : value
-        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
-            ...this.queryParams,
-            [filterKey]: filterValue
-        }, { ...this.graphParams }, this.isEdges)
+    /**
+     * JSON filter tree for the `filters` query param. Must match the platform contract:
+     * root is an array of logical nodes `{ operator: "and" | "or", value: [...] }`; leaves are
+     * `{ field, operator, value }` where `operator` is a **backend** token (`contains` = case-insensitive
+     * substring, `containss` = case-sensitive, `eq`, `in`, …). The SDK only JSON-stringifies this value.
+     */
+    filters(tree: BackendFilterTreeRoot): Database<T>
+    /**
+     * DRF-style flat filter: `field` or `field__operator` query keys.
+     */
+    filters(field: string, operator: FilterOperator, value: string | number | boolean | (string | number | boolean)[]): Database<T>
+    filters(
+        arg0: string | BackendFilterTreeRoot,
+        arg1?: FilterOperator,
+        arg2?: string | number | boolean | (string | number | boolean)[]
+    ): Database<T> {
+        if (typeof arg0 === 'string' && arg1 !== undefined && arg2 !== undefined) {
+            const field = arg0
+            const operator = arg1
+            const value = arg2
+            const filterKey = operator === 'eq' ? field : `${field}__${operator}`
+            const filterValue = Array.isArray(value) ? value.join(',') : value
+            return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+                ...this.queryParams,
+                [filterKey]: filterValue
+            }, { ...this.graphParams }, this.isEdges)
+        }
+
+        if (arg1 === undefined && arg2 === undefined && isBackendFilterTreeRoot(arg0)) {
+            return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+                ...this.queryParams,
+                filters: JSON.stringify(arg0)
+            }, { ...this.graphParams }, this.isEdges)
+        }
+
+        throw new TypeError(
+            'Database.filters: use filters(tree) with a root array of { operator: "and"|"or", value: [...] }, or filters(field, operator, value).'
+        )
     }
 
-    sort(field: string, order: SortOrder = 'asc'): Database<T> {
-        const ordering = order === 'desc' ? `-${field}` : field
+    /**
+     * Sets the `ordering` query param (DRF-style: `-field` for desc, comma-separated for multiple).
+     * - `sort('created_at', 'desc')` — one column (optional second arg defaults to `'asc'`)
+     * - `sort([{ field: 'salary', order: 'desc' }, { field: 'hire_date' }])` — multiple columns
+     * - `sort('-salary,hire_date')` — raw string (e.g. from `convertRefineSorters`); omit the second arg
+     */
+    sort(
+        fieldOrFields: string | Array<{ field: string; order?: SortOrder }>,
+        order?: SortOrder
+    ): Database<T> {
+        let newOrdering: string
+        if (typeof fieldOrFields === 'string') {
+            const o = order ?? 'asc'
+            newOrdering = o === 'desc' ? `-${fieldOrFields}` : fieldOrFields
+        } else {
+            newOrdering = fieldOrFields
+                .map(({ field, order: o = 'asc' }) => (o === 'desc' ? `-${field}` : field))
+                .join(',')
+        }
+        const existing = this.queryParams?.ordering
+        const ordering = existing ? `${existing},${newOrdering}` : newOrdering
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
             ordering
@@ -100,6 +151,11 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
+    /** Populate all first-level relations (`?populate=*`). */
+    populateAll(): Database<T> {
+        return this.populate(['*'])
+    }
+
     search(query: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
@@ -107,31 +163,50 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
-    allowedActions(actions: string[]): Database<T> {
+    /** Restrict SELECT to named columns (`?fields=a,b,c`). */
+    fields(columns: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            allowed_actions: actions.join(',')
+            fields: columns
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
+    allowedActions(actions: string[]): Database<T> {
+        const newValue = actions.join(',')
+        const existing = this.queryParams?.allowed_actions
+        const allowed_actions = existing ? `${existing},${newValue}` : newValue
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            allowed_actions
         }, { ...this.graphParams }, this.isEdges)
     }
 
     aggregate(...expressions: string[]): Database<T> {
+        const newValue = expressions.join(',')
+        const existing = this.queryParams?._aggregate
+        const _aggregate = existing ? `${existing},${newValue}` : newValue
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _aggregate: expressions.join(',')
+            _aggregate
         }, { ...this.graphParams }, this.isEdges)
     }
 
     groupBy(...fields: string[]): Database<T> {
+        const newValue = fields.join(',')
+        const existing = this.queryParams?._group_by
+        const _group_by = existing ? `${existing},${newValue}` : newValue
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _group_by: fields.join(',')
+            _group_by
         }, { ...this.graphParams }, this.isEdges)
     }
 
     having(condition: string): Database<T> {
+        const existing = this.queryParams?._having
+        const _having = existing ? `${existing},${condition}` : condition
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
             ...this.queryParams,
-            _having: condition
+            _having
         }, { ...this.graphParams }, this.isEdges)
     }
 

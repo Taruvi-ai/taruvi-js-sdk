@@ -1,5 +1,5 @@
 import { HttpClient } from "./lib-internal/http/HttpClient.js";
-import { TokenClient, type AuthTokens } from "./lib-internal/token/TokenClient.js";
+import { TokenClient } from "./lib-internal/token/TokenClient.js";
 import type { TaruviConfig } from "./types.js";
 import packageJson from "../package.json" with { type: "json" };
 

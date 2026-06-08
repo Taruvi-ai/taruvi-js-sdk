@@ -7,7 +7,7 @@ import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
 /**
  * Auth Client - Handles user authentication using Web UI Flow
  * Uses session token for API authentication via X-Session-Token header.
- * On 401/403, tokens are cleared automatically by HttpClient interceptor.
+ * On 401, tokens are cleared automatically by HttpClient interceptor (403 does not clear the token).
  */
 export class Auth {
     private client: Client

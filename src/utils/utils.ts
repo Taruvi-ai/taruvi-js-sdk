@@ -18,6 +18,7 @@ export const getRuntimeEnvironment = (): string => {
     return 'Server'
 }
 
+/** Builds a query string. Keys may include pre-flattened bracket names (e.g. CrudFilters `filters[0][field]=...`). */
 export function buildQueryString(queryParams: Record<string, unknown> | undefined): string {
     if (!queryParams || Object.keys(queryParams).length === 0) {
         return ''

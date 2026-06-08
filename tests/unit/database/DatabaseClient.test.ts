@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Database } from '../../../src/lib/database/DatabaseClient.js'
 import { Client } from '../../../src/client.js'
-import type { DatabaseResponse, DatabaseSingleResponse, EdgeResponse } from '../../../src/lib/database/types.js'
+import type { BackendFilterTreeRoot, DatabaseResponse, DatabaseSingleResponse, EdgeResponse } from '../../../src/lib/database/types.js'
 import type { TaruviResponse } from '../../../src/types.js'
 
 // Mock the Client
@@ -30,65 +30,114 @@ describe('Database', () => {
         })
     })
 
-    describe('filter()', () => {
+    describe('filters() flat (triple-arg)', () => {
         it('eq operator uses field name without suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('status', 'eq', 'active').execute()
+            await new Database(mockClient).from('accounts').filters('status', 'eq', 'active').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('status=active'))
         })
 
         it('gt operator appends __gt suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('age', 'gt', 18).execute()
+            await new Database(mockClient).from('accounts').filters('age', 'gt', 18).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('age__gt=18'))
         })
 
         it('gte operator appends __gte suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('age', 'gte', 18).execute()
+            await new Database(mockClient).from('accounts').filters('age', 'gte', 18).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('age__gte=18'))
         })
 
         it('lt operator appends __lt suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('age', 'lt', 65).execute()
+            await new Database(mockClient).from('accounts').filters('age', 'lt', 65).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('age__lt=65'))
         })
 
         it('lte operator appends __lte suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('age', 'lte', 65).execute()
+            await new Database(mockClient).from('accounts').filters('age', 'lte', 65).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('age__lte=65'))
         })
 
         it('icontains operator appends __icontains suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('name', 'icontains', 'john').execute()
+            await new Database(mockClient).from('accounts').filters('name', 'icontains', 'john').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('name__icontains=john'))
         })
 
         it('in operator joins array values with comma', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('status', 'in', ['active', 'pending']).execute()
+            await new Database(mockClient).from('accounts').filters('status', 'in', ['active', 'pending']).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('status__in=active%2Cpending'))
         })
 
-        it('isnull operator appends __isnull suffix', async () => {
+        it('null operator appends __null suffix', async () => {
             mockHttpClient.get.mockResolvedValue([])
-            await new Database(mockClient).from('accounts').filter('deleted_at', 'isnull', true).execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('deleted_at__isnull=true'))
+            await new Database(mockClient).from('accounts').filters('deleted_at', 'null', true).execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('deleted_at__null=true'))
         })
 
         it('multiple filters chain correctly', async () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Database(mockClient)
                 .from('accounts')
-                .filter('status', 'eq', 'active')
-                .filter('age', 'gte', 18)
+                .filters('status', 'eq', 'active')
+                .filters('age', 'gte', 18)
                 .execute()
             const url = mockHttpClient.get.mock.calls[0][0]
             expect(url).toContain('status=active')
             expect(url).toContain('age__gte=18')
+        })
+    })
+
+    describe('filters() JSON tree', () => {
+        const normativeTree: BackendFilterTreeRoot = [
+            {
+                operator: 'and',
+                value: [
+                    { field: 'is_active', operator: 'eq', value: true },
+                    { field: 'hire_date', operator: 'lt', value: '2021-01-01' },
+                    {
+                        operator: 'or',
+                        value: [
+                            { field: 'salary', operator: 'gte', value: 200000 },
+                            {
+                                operator: 'and',
+                                value: [
+                                    { field: 'title', operator: 'containss', value: 'VP' },
+                                    { field: 'bonus', operator: 'gte', value: 50000 },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+
+        it('serializes tree into filters query param (round-trip)', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('accounts').filters(normativeTree).execute()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            const q = url.includes('?') ? url.split('?')[1] : ''
+            const params = new URLSearchParams(q)
+            const raw = params.get('filters')
+            expect(raw).toBeTruthy()
+            expect(JSON.parse(decodeURIComponent(raw!))).toEqual(normativeTree)
+        })
+
+        it('chains JSON filters with populate', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient)
+                .from('accounts')
+                .filters(normativeTree)
+                .populate(['customer'])
+                .execute()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).toContain('populate=customer')
+            const q = url.split('?')[1]
+            expect(new URLSearchParams(q).get('filters')).toBeTruthy()
         })
     })
 
@@ -109,6 +158,38 @@ describe('Database', () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Database(mockClient).from('accounts').sort('name').execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringMatching(/ordering=name(?!-)/))
+        })
+
+        it('comma-joins multiple fields from array (mixed asc/desc)', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient)
+                .from('accounts')
+                .sort([
+                    { field: 'salary', order: 'desc' },
+                    { field: 'hire_date', order: 'asc' },
+                ])
+                .execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(
+                expect.stringContaining('ordering=-salary%2Chire_date')
+            )
+        })
+
+        it('accepts pre-built ordering string', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('accounts').sort('-a,b').execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('ordering=-a%2Cb'))
+        })
+
+        it('chains with filters without dropping ordering', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient)
+                .from('accounts')
+                .filters('status', 'eq', 'active')
+                .sort([{ field: 'name', order: 'asc' }])
+                .execute()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).toContain('status=active')
+            expect(url).toContain('ordering=name')
         })
     })
 
@@ -131,6 +212,12 @@ describe('Database', () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Database(mockClient).from('orders').populate(['customer', 'items']).execute()
             expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('populate=customer%2Citems'))
+        })
+
+        it('populateAll sets wildcard populate', async () => {
+            mockHttpClient.get.mockResolvedValue([])
+            await new Database(mockClient).from('orders').populateAll().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('populate=*'))
         })
     })
 
@@ -232,7 +319,7 @@ describe('Database', () => {
             mockHttpClient.get.mockResolvedValue([])
             await new Database(mockClient)
                 .from('accounts')
-                .filter('status', 'eq', 'active')
+                .filters('status', 'eq', 'active')
                 .page(1)
                 .pageSize(10)
                 .execute()
@@ -486,7 +573,7 @@ describe('Database', () => {
     describe('deleteFiltered()', () => {
         it('calls httpClient.delete with filter params in query string', async () => {
             mockHttpClient.delete.mockResolvedValue({ status: 'success' })
-            await new Database(mockClient).from('accounts').filter('status', 'eq', 'inactive').deleteFiltered().execute()
+            await new Database(mockClient).from('accounts').filters('status', 'eq', 'inactive').deleteFiltered().execute()
             const url = mockHttpClient.delete.mock.calls[0][0]
             expect(url).toContain('status=inactive')
             expect(url).not.toContain('/undefined/')
@@ -494,7 +581,7 @@ describe('Database', () => {
 
         it('hits collection endpoint without recordId', async () => {
             mockHttpClient.delete.mockResolvedValue({ status: 'success' })
-            await new Database(mockClient).from('accounts').filter('age', 'lt', 18).deleteFiltered().execute()
+            await new Database(mockClient).from('accounts').filters('age', 'lt', 18).deleteFiltered().execute()
             expect(mockHttpClient.delete).toHaveBeenCalledWith(
                 expect.stringContaining('api/apps/test-app/datatables/accounts/data/?')
             )

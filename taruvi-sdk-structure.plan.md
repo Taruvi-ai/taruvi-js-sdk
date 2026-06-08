@@ -1,3 +1,5 @@
+> **Internal planning doc.** For current SDK usage, see **[docs/README.md](docs/README.md)**.
+
 taruvi-sdk/
 ├── src/                                    # Source code
 │   ├── index.ts                           # Main entry point
