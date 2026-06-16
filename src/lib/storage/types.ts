@@ -31,16 +31,17 @@ export interface StorageUpdateRequest {
 export interface StorageObject {
     id: number
     uuid: string
-    bucket?: number
-    bucket_slug?: string
-    bucket_name?: string
+    bucket: number
+    bucket_slug: string
+    bucket_name: string
     filename: string
     file_path: string
     file_url: string
     size: number
     mimetype: string
+    is_office_editable: boolean
     metadata?: Record<string, unknown>
-    visibility?: string
+    visibility?: 'public' | 'private' | null
     created_at: string
     updated_at: string
     created_by?: string
