@@ -4,7 +4,10 @@ import type {
     StorageResponse,
     StorageListResponse,
     StorageUploadBatchResponse,
-    StorageDeleteBatchResponse
+    StorageDeleteBatchResponse,
+    StorageAccessLinkResponse,
+    StorageBrowseResponse,
+    StorageBrowseFilters,
 } from "./types.js";
 import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
 import type { TaruviConfig, StorageFilters } from "../../types.js";
@@ -46,6 +49,10 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams }, undefined, undefined, filters)
     }
 
+    browse(filters?: StorageBrowseFilters) {
+        return new Storage(this.client, { ...this.urlParams, browse: "browse" }, HttpMethod.GET, undefined, undefined, filters as Record<string, string> | undefined)
+    }
+
     delete(paths: string[]): Storage {
         return new Storage(this.client, {
             ...this.urlParams, delete: "delete"
@@ -64,6 +71,14 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, undefined, { metadata: 'true' })
     }
 
+    viewAccess(path: string): Storage {
+        return new Storage(this.client, { ...this.urlParams, path, accessMode: 'view' }, HttpMethod.GET)
+    }
+
+    editAccess(path: string): Storage {
+        return new Storage(this.client, { ...this.urlParams, path, accessMode: 'edit' }, HttpMethod.GET)
+    }
+
     upload(filesData: { files: File[], metadatas: object[], paths: string[] }): Storage {
         const formData = new FormData()
         filesData.files.forEach(f => formData.append('files', f))
@@ -79,23 +94,28 @@ export class Storage {
             throw new Error('Bucket is required. Call .from(bucketName) first.')
         }
 
-        return (
-            StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket) +
-            (Object.keys(this.urlParams) as StorageRouteKey[]).reduce((acc, key) => {
-                const value = this.urlParams[key as keyof BucketUrlParams]
+        const pathSegment = (Object.keys(this.urlParams) as StorageRouteKey[]).reduce((acc, key) => {
+            const value = this.urlParams[key as keyof BucketUrlParams]
 
-                if (!value) return acc
+            if (!value) return acc
 
-                if (key === 'path' && typeof value === 'string') {
-                    acc += StorageRoutes.path(value)
-                }
+            if (key === 'path' && typeof value === 'string') {
+                acc += StorageRoutes.path(value)
+            }
 
-                if ((key === 'upload' || key === 'delete') && typeof StorageRoutes[key] === 'function') {
+            if ((key === 'upload' || key === 'delete' || key === 'browse') && typeof StorageRoutes[key] === 'function') {
                     acc += (StorageRoutes[key] as () => string)()
                 }
 
-                return acc
-            }, '') +
+            return acc
+        }, '')
+
+        const accessSuffix = this.urlParams.accessMode ? `/${this.urlParams.accessMode}` : ''
+
+        return (
+            StorageRoutes.baseUrl(this.config.appSlug, this.urlParams.bucket) +
+            pathSegment +
+            accessSuffix +
             '/' +
             buildQueryString({ ...this.filters as Record<string, unknown>, ...this.queryParams })
         )
@@ -106,13 +126,14 @@ export class Storage {
     /**
      * Execute the storage operation.
      * Returns different types based on the operation:
-     * - List files: StorageListResponse[]
+     * - List files: StorageListResponse
+     * - Browse directory: StorageBrowseResponse
      * - Download: Blob
      * - Upload: StorageUploadBatchResponse
      * - Delete: StorageDeleteBatchResponse
      * - Update: StorageResponse
      */
-    async execute<T = StorageListResponse[] | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob>(): Promise<T> {
+    async execute<T = StorageListResponse | StorageBrowseResponse | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob | StorageAccessLinkResponse>(): Promise<T> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 
@@ -128,7 +149,7 @@ export class Storage {
 
             case HttpMethod.GET:
             default: {
-                const isDownload = this.urlParams.path && !this.queryParams?.metadata
+                const isDownload = this.urlParams.path && !this.queryParams?.metadata && !this.urlParams.accessMode && !this.urlParams.browse
                 return await this.client.httpClient.get<T>(url, isDownload ? { responseType: 'blob' } : undefined)
             }
         }
