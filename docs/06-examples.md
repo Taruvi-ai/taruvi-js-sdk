@@ -12,6 +12,7 @@ import {
   Auth,
   App,
   Secrets,
+  type StorageAccessLinkResponse,
 } from '@taruvi/sdk'
 
 const client = new Client({
@@ -287,7 +288,88 @@ const url = new Storage(client)
   .from('documents')
   .getUrl('reports/annual.pdf')
 // → "https://your-site.taruvi.cloud/api/apps/your-app/storage/buckets/documents/objects/reports%2Fannual.pdf/"
+
+// SharePoint — open Office file for viewing (only for storage_provider: 'sharepoint')
+const viewResult = await new Storage(client)
+  .from('documents')
+  .viewAccess('contracts/nda.docx')
+  .execute<StorageAccessLinkResponse>()
+window.open(viewResult.data.url, '_blank')
+
+// SharePoint — open Office file for editing
+const editResult = await new Storage(client)
+  .from('documents')
+  .editAccess('contracts/nda.docx')
+  .execute<StorageAccessLinkResponse>()
+window.open(editResult.data.url, '_blank')
 ```
+
+---
+
+## Storage — folder navigation (browse)
+
+`browse()` returns a one-level directory view — virtual folders and actual files at a given prefix. Use it to build a Google Drive-style file explorer.
+
+```typescript
+import type { StorageBrowseResponse } from '@taruvi/sdk'
+
+// List root of bucket
+const root = await new Storage(client)
+  .from('documents')
+  .browse()
+  .execute<StorageBrowseResponse>()
+
+console.log(root.data.folders)
+// [{ type: 'folder', name: 'reports', path: 'reports/' }, ...]
+console.log(root.data.objects)
+// [{ type: 'file', name: 'readme.txt', path: 'readme.txt', size: 128, ... }, ...]
+console.log(root.data.has_next) // false
+
+// Navigate into a subfolder — pass the folder's `path` back as `prefix`
+const sub = await new Storage(client)
+  .from('documents')
+  .browse({ prefix: root.data.folders[0].path })  // e.g. 'reports/'
+  .execute<StorageBrowseResponse>()
+
+// Pagination — page through large directories
+const page2 = await new Storage(client)
+  .from('documents')
+  .browse({ prefix: 'reports/', page: 2, page_size: 20 })
+  .execute<StorageBrowseResponse>()
+
+// Sort by name ascending
+const sorted = await new Storage(client)
+  .from('documents')
+  .browse({ sort: 'name', order: 'asc' })
+  .execute<StorageBrowseResponse>()
+
+// Discriminate folders vs files
+for (const entry of [...root.data.folders, ...root.data.objects]) {
+  if (entry.type === 'folder') {
+    console.log('📁', entry.name, '→ navigate with prefix:', entry.path)
+  } else {
+    console.log('📄', entry.name, entry.size, 'bytes', entry.is_office_editable ? '(Office)' : '')
+  }
+}
+
+// Breadcrumb helper — split a prefix into navigable segments
+function breadcrumbs(prefix: string) {
+  const parts = prefix.split('/').filter(Boolean)
+  return parts.map((part, i) => ({
+    label: part,
+    prefix: parts.slice(0, i + 1).join('/') + '/',
+  }))
+}
+// breadcrumbs('reports/2024/q1/') → [
+//   { label: 'reports', prefix: 'reports/' },
+//   { label: '2024',    prefix: 'reports/2024/' },
+//   { label: 'q1',     prefix: 'reports/2024/q1/' },
+// ]
+```
+
+> **browse vs filter:** `browse()` is one-level only and returns both virtual folders and files (`type: "folder"` / `type: "file"`). To navigate deeper, pass a folder's `path` back as `prefix`. `filter()` is a flat search across the entire bucket with richer query options (MIME type, date range, full-text search, etc.).
+
+---
 
 ### Storage — immutable filter branches
 
