@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Storage } from '../../../src/lib/storage/StorageClient.js'
 import { Client } from '../../../src/client.js'
-import type { StorageResponse, StorageListResponse, StorageDeleteBatchResponse } from '../../../src/lib/storage/types.js'
+import type { StorageResponse, StorageListResponse, StorageDeleteBatchResponse, StorageBrowseResponse } from '../../../src/lib/storage/types.js'
 
 const mockHttpClient = {
     get: vi.fn(),
@@ -188,6 +188,65 @@ describe('Storage', () => {
             expect(url).toContain('search=test')
             expect(url).toContain('page=1')
             expect(url).toContain('ordering=-created_at')
+        })
+    })
+
+    describe('browse()', () => {
+        it('builds correct URL for root browse', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(
+                'api/apps/test-app/storage/buckets/documents/objects/browse/',
+                undefined
+            )
+        })
+
+        it('appends prefix and pagination as query params', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse({ prefix: 'reports/', page: 2, page_size: 20 }).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('/browse/')
+            expect(url).toContain('prefix=reports%2F')
+            expect(url).toContain('page=2')
+            expect(url).toContain('page_size=20')
+        })
+
+        it('appends sort params as query params', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse({ sort: 'name', order: 'asc' }).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('sort=name')
+            expect(url).toContain('order=asc')
+        })
+
+        it('does not use blob responseType for browse', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.any(String), undefined)
+        })
+
+        it('returns StorageBrowseResponse shape', async () => {
+            const mockResponse: StorageBrowseResponse = {
+                status: 'success',
+                message: 'Directory listed',
+                data: {
+                    prefix: '',
+                    folders: [{ type: 'folder', name: 'reports', path: 'reports/' }],
+                    objects: [{ type: 'file', name: 'readme.txt', path: 'readme.txt', id: 1, uuid: 'abc', size: 128, mimetype: 'text/plain', visibility: 'private', is_office_editable: false, created_at: '2024-01-01', updated_at: '2024-01-01', download_url: null }],
+                    has_next: false,
+                    page: 1,
+                    page_size: 50,
+                },
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').browse().execute() as StorageBrowseResponse
+            expect(result.data.folders).toHaveLength(1)
+            expect(result.data.folders[0].type).toBe('folder')
+            expect(result.data.folders[0].path).toBe('reports/')
+            expect(result.data.objects[0].path).toBe('readme.txt')
+            expect(result.data.objects[0].is_office_editable).toBe(false)
+            expect(result.data.has_next).toBe(false)
+            expect(result.data.page).toBe(1)
         })
     })
 
