@@ -7,6 +7,7 @@ const mockHttpClient = {
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
+    patch: vi.fn(),
     delete: vi.fn()
 }
 
@@ -77,10 +78,12 @@ describe('Storage', () => {
     })
 
     describe('download()', () => {
-        it('calls httpClient.get with encoded path', async () => {
+        it('calls httpClient.get with path (slashes preserved as real separators)', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('path/to/file.pdf').execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path%2Fto%2Ffile.pdf'), { responseType: 'blob' })
+            // Slashes are kept as real path separators so Django's <path:key> route resolves correctly.
+            // Per-segment encoding still encodes unsafe chars within each segment.
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path/to/file.pdf'), { responseType: 'blob' })
         })
     })
 
@@ -114,11 +117,13 @@ describe('Storage', () => {
     })
 
     describe('update()', () => {
-        it('calls httpClient.put with path and body', async () => {
+        it('calls httpClient.patch with path and body (metadata-only, no file upload)', async () => {
+            // update() must use PATCH, not PUT. PUT routes to the file-upload handler on the
+            // platform; PATCH routes to partial_update() which accepts JSON metadata/visibility.
             const body = { visibility: 'public', metadata: { category: 'reports' } }
-            mockHttpClient.put.mockResolvedValue({ id: 1 })
+            mockHttpClient.patch.mockResolvedValue({ id: 1 })
             await new Storage(mockClient).from('documents').update('file.pdf', body).execute()
-            expect(mockHttpClient.put).toHaveBeenCalledWith(
+            expect(mockHttpClient.patch).toHaveBeenCalledWith(
                 expect.stringContaining('file.pdf'),
                 body
             )
@@ -144,11 +149,12 @@ describe('Storage', () => {
             expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/storage/buckets/documents/objects/', undefined)
         })
 
-        it('builds correct URL for download with encoded path', async () => {
+        it('builds correct URL for download with per-segment encoded path', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('folder/file name.pdf').execute()
+            // Slashes are real path separators; unsafe chars within segments (spaces) are encoded.
             expect(mockHttpClient.get).toHaveBeenCalledWith(
-                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/',
+                'api/apps/test-app/storage/buckets/documents/objects/folder/file%20name.pdf/',
                 { responseType: 'blob' }
             )
         })
@@ -297,13 +303,13 @@ describe('Storage', () => {
             expect(result.data.deleted_count).toBe(1)
         })
 
-        it('returns update metadata response', async () => {
+        it('returns update metadata response via PATCH', async () => {
             const mockResponse: StorageResponse = {
                 status: 'success',
                 message: 'Object metadata updated successfully',
                 data: { id: 1, file: 'doc.pdf', path: 'doc.pdf', size: 1024, mimetype: 'application/pdf', visibility: 'public', created_at: '2024-01-01', updated_at: '2024-01-01' }
             }
-            mockHttpClient.put.mockResolvedValue(mockResponse)
+            mockHttpClient.patch.mockResolvedValue(mockResponse)
             const result = await new Storage(mockClient).from('documents').update('doc.pdf', { visibility: 'public' }).execute() as StorageResponse
             expect(result.data.visibility).toBe('public')
         })

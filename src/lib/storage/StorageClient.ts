@@ -59,8 +59,9 @@ export class Storage {
         }, HttpMethod.POST, { paths })
     }
 
+    /** Update object metadata / visibility. PATCH only — no file upload. */
     update(path: string, body: object): Storage {
-        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.PUT, body)
+        return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.PATCH, body)
     }
 
     download(path: string): Storage {
@@ -71,10 +72,20 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams, path }, HttpMethod.GET, undefined, undefined, { metadata: 'true' })
     }
 
+    /**
+     * Get a SharePoint view-access URL for an Office file.
+     * Public objects are accessible without authentication.
+     * @throws `ForbiddenError` (403) if denied by Cerbos `read` policy.
+     */
     viewAccess(path: string): Storage {
         return new Storage(this.client, { ...this.urlParams, path, accessMode: 'view' }, HttpMethod.GET)
     }
 
+    /**
+     * Get a SharePoint edit-access URL for an Office file.
+     * Authentication is always required — unauthenticated callers get 403 even on public objects.
+     * @throws `ForbiddenError` (403) if unauthenticated or denied by Cerbos `update` policy.
+     */
     editAccess(path: string): Storage {
         return new Storage(this.client, { ...this.urlParams, path, accessMode: 'edit' }, HttpMethod.GET)
     }
@@ -143,6 +154,9 @@ export class Storage {
 
             case HttpMethod.PUT:
                 return await this.client.httpClient.put<T>(url, this.body)
+
+            case HttpMethod.PATCH:
+                return await this.client.httpClient.patch<T>(url, this.body)
 
             case HttpMethod.DELETE:
                 return await this.client.httpClient.delete<T>(url)

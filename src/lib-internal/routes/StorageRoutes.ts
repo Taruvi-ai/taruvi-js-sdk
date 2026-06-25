@@ -1,6 +1,7 @@
 export const StorageRoutes = {
     baseUrl: (appslug: string, bucket: string) => `api/apps/${appslug}/storage/buckets/${bucket}/objects`,
-    path: (path: string) => "/" + encodeURIComponent(path),
+    // Encode per-segment so slashes stay as real path separators (required by Django's <path:key>).
+    path: (path: string) => "/" + path.split('/').map(encodeURIComponent).join('/'),
     upload: () => "/batch-upload",
     delete: () => "/batch-delete",
     browse: () => "/browse",
