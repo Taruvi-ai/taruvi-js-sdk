@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Storage } from '../../../src/lib/storage/StorageClient.js'
 import { Client } from '../../../src/client.js'
-import type { StorageResponse, StorageListResponse, StorageDeleteBatchResponse } from '../../../src/lib/storage/types.js'
+import type { StorageResponse, StorageListResponse, StorageDeleteBatchResponse, StorageBrowseResponse } from '../../../src/lib/storage/types.js'
 
 const mockHttpClient = {
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
+    patch: vi.fn(),
     delete: vi.fn()
 }
 
@@ -77,10 +78,12 @@ describe('Storage', () => {
     })
 
     describe('download()', () => {
-        it('calls httpClient.get with encoded path', async () => {
+        it('calls httpClient.get with path (slashes preserved as real separators)', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('path/to/file.pdf').execute()
-            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path%2Fto%2Ffile.pdf'), { responseType: 'blob' })
+            // Slashes are kept as real path separators so Django's <path:key> route resolves correctly.
+            // Per-segment encoding still encodes unsafe chars within each segment.
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('path/to/file.pdf'), { responseType: 'blob' })
         })
     })
 
@@ -114,11 +117,13 @@ describe('Storage', () => {
     })
 
     describe('update()', () => {
-        it('calls httpClient.put with path and body', async () => {
+        it('calls httpClient.patch with path and body (metadata-only, no file upload)', async () => {
+            // update() must use PATCH, not PUT. PUT routes to the file-upload handler on the
+            // platform; PATCH routes to partial_update() which accepts JSON metadata/visibility.
             const body = { visibility: 'public', metadata: { category: 'reports' } }
-            mockHttpClient.put.mockResolvedValue({ id: 1 })
+            mockHttpClient.patch.mockResolvedValue({ id: 1 })
             await new Storage(mockClient).from('documents').update('file.pdf', body).execute()
-            expect(mockHttpClient.put).toHaveBeenCalledWith(
+            expect(mockHttpClient.patch).toHaveBeenCalledWith(
                 expect.stringContaining('file.pdf'),
                 body
             )
@@ -144,11 +149,12 @@ describe('Storage', () => {
             expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/storage/buckets/documents/objects/', undefined)
         })
 
-        it('builds correct URL for download with encoded path', async () => {
+        it('builds correct URL for download with per-segment encoded path', async () => {
             mockHttpClient.get.mockResolvedValue(new Blob())
             await new Storage(mockClient).from('documents').download('folder/file name.pdf').execute()
+            // Slashes are real path separators; unsafe chars within segments (spaces) are encoded.
             expect(mockHttpClient.get).toHaveBeenCalledWith(
-                'api/apps/test-app/storage/buckets/documents/objects/folder%2Ffile%20name.pdf/',
+                'api/apps/test-app/storage/buckets/documents/objects/folder/file%20name.pdf/',
                 { responseType: 'blob' }
             )
         })
@@ -188,6 +194,65 @@ describe('Storage', () => {
             expect(url).toContain('search=test')
             expect(url).toContain('page=1')
             expect(url).toContain('ordering=-created_at')
+        })
+    })
+
+    describe('browse()', () => {
+        it('builds correct URL for root browse', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(
+                'api/apps/test-app/storage/buckets/documents/objects/browse/',
+                undefined
+            )
+        })
+
+        it('appends prefix and pagination as query params', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse({ prefix: 'reports/', page: 2, page_size: 20 }).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('/browse/')
+            expect(url).toContain('prefix=reports%2F')
+            expect(url).toContain('page=2')
+            expect(url).toContain('page_size=20')
+        })
+
+        it('appends sort params as query params', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse({ sort: 'name', order: 'asc' }).execute()
+            const url = mockHttpClient.get.mock.calls[0][0]
+            expect(url).toContain('sort=name')
+            expect(url).toContain('order=asc')
+        })
+
+        it('does not use blob responseType for browse', async () => {
+            mockHttpClient.get.mockResolvedValue({})
+            await new Storage(mockClient).from('documents').browse().execute()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.any(String), undefined)
+        })
+
+        it('returns StorageBrowseResponse shape', async () => {
+            const mockResponse: StorageBrowseResponse = {
+                status: 'success',
+                message: 'Directory listed',
+                data: {
+                    prefix: '',
+                    folders: [{ type: 'folder', name: 'reports', path: 'reports/' }],
+                    objects: [{ type: 'file', name: 'readme.txt', path: 'readme.txt', id: 1, uuid: 'abc', size: 128, mimetype: 'text/plain', visibility: 'private', is_office_editable: false, created_at: '2024-01-01', updated_at: '2024-01-01', download_url: null }],
+                    has_next: false,
+                    page: 1,
+                    page_size: 50,
+                },
+            }
+            mockHttpClient.get.mockResolvedValue(mockResponse)
+            const result = await new Storage(mockClient).from('documents').browse().execute() as StorageBrowseResponse
+            expect(result.data.folders).toHaveLength(1)
+            expect(result.data.folders[0].type).toBe('folder')
+            expect(result.data.folders[0].path).toBe('reports/')
+            expect(result.data.objects[0].path).toBe('readme.txt')
+            expect(result.data.objects[0].is_office_editable).toBe(false)
+            expect(result.data.has_next).toBe(false)
+            expect(result.data.page).toBe(1)
         })
     })
 
@@ -238,13 +303,13 @@ describe('Storage', () => {
             expect(result.data.deleted_count).toBe(1)
         })
 
-        it('returns update metadata response', async () => {
+        it('returns update metadata response via PATCH', async () => {
             const mockResponse: StorageResponse = {
                 status: 'success',
                 message: 'Object metadata updated successfully',
                 data: { id: 1, file: 'doc.pdf', path: 'doc.pdf', size: 1024, mimetype: 'application/pdf', visibility: 'public', created_at: '2024-01-01', updated_at: '2024-01-01' }
             }
-            mockHttpClient.put.mockResolvedValue(mockResponse)
+            mockHttpClient.patch.mockResolvedValue(mockResponse)
             const result = await new Storage(mockClient).from('documents').update('doc.pdf', { visibility: 'public' }).execute() as StorageResponse
             expect(result.data.visibility).toBe('public')
         })

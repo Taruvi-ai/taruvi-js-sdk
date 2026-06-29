@@ -87,15 +87,22 @@ Entry: `new Storage(client)`.
 |--------|---------|-------------|
 | `from(bucket)` | `Storage` | Set bucket name |
 | `getUrl(path)` | `string` | Get the full API URL for a stored file (no HTTP request) |
-| `filter(filters)` | `Storage` | List filters (size, date, MIME, search, pagination, …) |
+| `filter(filters)` | `Storage` | Flat list with filters (size, date, MIME, search, pagination, …) |
+| `browse(filters?)` | `Storage` | One-level directory listing — returns virtual folders + files for a prefix |
 | `upload({ files, paths, metadatas })` | `Storage` | POST multipart upload |
 | `download(path)` | `Storage` | GET file as `Blob` |
 | `delete(paths)` | `Storage` | POST bulk delete by paths |
 | `update(path, body)` | `Storage` | PUT metadata update |
 | `metadata(path)` | `Storage` | GET object metadata only |
-| `execute()` | `Promise<...>` | Run operation (return type varies: list, blob, upload/delete batch) |
+| `viewAccess(path)` | `Storage` | GET SharePoint view-access URL for an Office file |
+| `editAccess(path)` | `Storage` | GET SharePoint edit-access URL for an Office file |
+| `execute()` | `Promise<...>` | Run operation (return type varies: list, browse, blob, upload/delete batch, access link) |
 
 **`StorageFilters`:** pagination, size/date ranges, search, MIME, visibility, ordering — see [`src/types.ts`](../src/types.ts).
+
+**`StorageBrowseFilters`:** `prefix`, `page` (default 1), `page_size` (default 50, max 100), `sort` (`name` \| `size` \| `created_at` \| `updated_at`), `order` (`asc` \| `desc`) — see [`src/lib/storage/types.ts`](../src/lib/storage/types.ts).
+
+**`StorageBrowseResponse`:** `data.prefix`, `data.folders[]` (`StorageBrowseFolder` — `type`, `name`, `path`), `data.objects[]` (`StorageBrowseFile` — `type`, `id`, `uuid`, `name`, `path`, `size`, `mimetype`, `visibility`, `is_office_editable`, `created_at`, `updated_at`, `download_url`), `data.has_next`, `data.page`, `data.page_size`.
 
 ---
 
@@ -216,7 +223,7 @@ Import from `@taruvi/sdk`:
 - **Auth:** `AuthTokens`
 - **User:** `UserCreateRequest`, `UserResponse`, `UserListResponse`, role/preference types, …
 - **Database:** `FilterOperator`, `SortOrder`, `GraphInclude`, `BackendFilterTreeRoot`, `PgRangeValue`, edge types, …
-- **Storage:** `StorageObject`, upload/delete batch types, …
+- **Storage:** `StorageObject`, `StorageAccessLinkResponse`, upload/delete batch types, …
 - **Policy, App, Functions, Settings, Secrets, Analytics:** see `src/index.ts`
 
 **Utility:** `isBackendFilterTreeRoot` — type guard for JSON filter trees.
