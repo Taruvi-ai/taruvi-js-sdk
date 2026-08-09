@@ -17,9 +17,16 @@ export interface BucketFileUpload {
     metadata?: Record<string, unknown>
 }
 
+/**
+ * Uploadable binary payloads for browser and Node.js.
+ * - Browser: typically `File` / `Blob`
+ * - Node.js: `Buffer` / `Uint8Array` / `Blob` (Node 18+)
+ */
+export type UploadData = File | Blob | Buffer | Uint8Array
+
 // Request types
 export interface StorageRequest {
-    files: File[]
+    files: UploadData[]
     paths: string[]
     metadatas: object[]
 }

@@ -59,7 +59,7 @@ Full guides live in **[docs/](docs/README.md)**:
 
 | Client | Use for |
 |--------|---------|
-| `Database` | Table CRUD, filters, pagination, graph/edges |
+| `Database` | Table CRUD, filters, pagination, graph/edges, vector/hybrid search |
 | `Storage` | Bucket files: list, upload, download, delete |
 | `Auth` | Browser login/signup/logout, session token |
 | `User` | User admin, roles, preferences |
@@ -75,6 +75,8 @@ Full guides live in **[docs/](docs/README.md)**:
 - **Immutable builder pattern** for `Database`, `Storage`, `App`, and `Secrets.get()` — each chain step returns a new instance so parallel queries never overwrite each other's URLs or filters.
 - **Session authentication** via `X-Session-Token`; automatic token extraction from URL hash after OAuth redirect in the browser.
 - **Typed errors** — `AuthError`, `NotFoundError`, `ValidationError`, and others exported from the package.
+- **Vector & hybrid search** — `Database.vectorSearch()` / `.hybrid()` emit the same query params as the Python SDK (`field__vector_near`, `_topk`, `_hybrid_*`).
+- **Storage uploads** accept `UploadData` (`File | Blob | Buffer | Uint8Array`) for browser and Node.
 
 ## Development
 

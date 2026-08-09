@@ -13,23 +13,28 @@ export class Client {
             throw new Error("Config is required")
         }
 
-        if (!config.apiKey) {
-            throw new Error("API key is required")
-        }
-
         if (!config.apiUrl) {
             throw new Error("API URL is required")
         }
 
-        this.config = config
+        const mode =
+            config.authMode ??
+            (typeof window !== "undefined" ? "browser" : "apiKey")
+
+        if (mode === "apiKey" && !config.apiKey) {
+            throw new Error("API key is required for apiKey auth mode")
+        }
+
+        this.config = {
+            ...config,
+            authMode: mode,
+        }
 
         // Internal clients for SDK use only
         // TokenClient must be created first, then passed to HttpClient
 
         this._tokenClient = new TokenClient(config.token)
         this._httpClient = new HttpClient(this.config, this._tokenClient)
-
-        // Check URL hash for tokens (OAuth callback)
         this.extractTokensFromUrl()
 
         console.info(`Taruvi SDK v${packageJson.version} initialized`)

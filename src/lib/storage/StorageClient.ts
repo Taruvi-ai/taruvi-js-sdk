@@ -1,6 +1,7 @@
 import type { Client } from "../../client.js";
 import type {
     BucketUrlParams,
+    StorageRequest,
     StorageResponse,
     StorageListResponse,
     StorageUploadBatchResponse,
@@ -8,11 +9,29 @@ import type {
     StorageAccessLinkResponse,
     StorageBrowseResponse,
     StorageBrowseFilters,
+    UploadData,
 } from "./types.js";
 import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
 import type { TaruviConfig, StorageFilters } from "../../types.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import { buildQueryString } from "../../utils/utils.js";
+
+function isNodeBuffer(value: unknown): value is Uint8Array {
+    const NodeBuffer = (globalThis as { Buffer?: { isBuffer?: (v: unknown) => boolean } }).Buffer
+    return typeof NodeBuffer?.isBuffer === "function" && NodeBuffer.isBuffer(value)
+}
+
+function toUploadBlob(file: UploadData, filename: string): Blob {
+    if (typeof Blob !== "undefined" && file instanceof Blob) {
+        return file
+    }
+    if (isNodeBuffer(file) || file instanceof Uint8Array) {
+        const bytes = new Uint8Array(file.byteLength)
+        bytes.set(file)
+        return new Blob([bytes], { type: "application/octet-stream" })
+    }
+    throw new Error(`Unsupported upload type for "${filename}"`)
+}
 
 export class Storage {
 
@@ -90,9 +109,13 @@ export class Storage {
         return new Storage(this.client, { ...this.urlParams, path, accessMode: 'edit' }, HttpMethod.GET)
     }
 
-    upload(filesData: { files: File[], metadatas: object[], paths: string[] }): Storage {
+    upload(filesData: StorageRequest): Storage {
         const formData = new FormData()
-        filesData.files.forEach(f => formData.append('files', f))
+        filesData.files.forEach((file, index) => {
+            const filename = filesData.paths[index] ?? `file-${index}`
+            const blob = toUploadBlob(file, filename)
+            formData.append('files', blob, filename)
+        })
         formData.append('paths', JSON.stringify(filesData.paths))
         formData.append('metadata', JSON.stringify(filesData.metadatas))
         return new Storage(this.client, {
@@ -139,12 +162,12 @@ export class Storage {
      * Returns different types based on the operation:
      * - List files: StorageListResponse
      * - Browse directory: StorageBrowseResponse
-     * - Download: Blob
+     * - Download: Blob (browser) | ArrayBuffer (Node)
      * - Upload: StorageUploadBatchResponse
      * - Delete: StorageDeleteBatchResponse
      * - Update: StorageResponse
      */
-    async execute<T = StorageListResponse | StorageBrowseResponse | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob | StorageAccessLinkResponse>(): Promise<T> {
+    async execute<T = StorageListResponse | StorageBrowseResponse | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob | ArrayBuffer | StorageAccessLinkResponse>(): Promise<T> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 
@@ -164,7 +187,10 @@ export class Storage {
             case HttpMethod.GET:
             default: {
                 const isDownload = this.urlParams.path && !this.queryParams?.metadata && !this.urlParams.accessMode && !this.urlParams.browse
-                return await this.client.httpClient.get<T>(url, isDownload ? { responseType: 'blob' } : undefined)
+                if (isDownload) {
+                    return await this.client.httpClient.getBinary(url) as T
+                }
+                return await this.client.httpClient.get<T>(url)
             }
         }
     }

@@ -29,24 +29,13 @@ export class Policy {
 
     /**
      * Get list of allowed actions for a specific resource.
-     *
-     * @param resource - Resource with kind and id
-     * @param options - Optional actions list, principal override, and aux data
-     * @returns List of action names that are allowed
-     *
-     * @example
-     * ```typescript
-     * const allowed = await client.policy.getAllowedActions(
-     *     { kind: 'datatable:users', id: '123', attr: {} }
-     * )
-     * // Returns: ['read', 'write', 'update']  // 'delete' not allowed
-     * ```
+     * Identity comes from the session / API key only (`principal` is ignored).
      */
     async getAllowedActions(
         resource: Resource,
         options: GetAllowedActionsOptions = {}
     ): Promise<string[]> {
-        const { actions = ['read', 'write', 'create', 'update', 'delete'], principal, auxData } = options
+        const { actions = ['read', 'write', 'create', 'update', 'delete'], auxData } = options
 
         const url = PolicyRoutes.baseUrl(this.config.appSlug) + PolicyRoutes.checkResource
         const body: Record<string, unknown> = {
@@ -56,16 +45,12 @@ export class Policy {
             }]
         }
 
-        if (principal) {
-            body.principal = principal
-        }
         if (auxData) {
             body.auxData = auxData
         }
 
         const result = await this.client.httpClient.post<PolicyCheckBatchResult>(url, body)
 
-        // Extract allowed actions
         if (result.results && result.results.length > 0) {
             const firstResult = result.results[0]
             const actionResults = firstResult?.actions || {}

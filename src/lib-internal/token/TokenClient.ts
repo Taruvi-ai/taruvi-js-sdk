@@ -18,8 +18,32 @@ export class TokenClient {
         this.runTimeEnvironment = getRuntimeEnvironment()
         this.browserRunTime = this.runTimeEnvironment == "Browser"
 
-        if (!this.browserRunTime && token) {
-            this.serverToken = token
+        // Prefer config.token when provided (overrides existing browser storage)
+        if (token) {
+            this.setToken(token)
+        }
+    }
+
+    /**
+     * Set access token.
+     * In browser environments, persists to localStorage (overwrites any existing access token).
+     * In server environments, stores in memory.
+     */
+    setToken(accessToken: string): void {
+        if (!this.browserRunTime) {
+            this.serverToken = accessToken
+            return
+        }
+
+        if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+            return
+        }
+
+        try {
+            // Prefer config.token when provided (overrides existing browser session token)
+            localStorage.setItem(TokenClient.SESSION_TOKEN_KEY, accessToken)
+        } catch (err) {
+            console.error('Failed to store session token:', err)
         }
     }
 

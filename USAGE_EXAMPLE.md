@@ -32,6 +32,13 @@ await database
   .filters('status', 'eq', 'active')
   .execute()
 
+// Vector + hybrid search
+await database
+  .from('documents')
+  .vectorSearch('embedding', [0.1, 0.2, 0.3], { topk: 5, metric: 'cosine' })
+  .hybrid({ strategy: 'rrf', alpha: 0.5 })
+  .execute()
+
 await storage.from('documents').filter({ page: 1 }).execute()
 ```
 

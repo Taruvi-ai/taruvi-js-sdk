@@ -1,11 +1,25 @@
 import { MimeTypeCategory, Visibility } from './utils/enums.js'
 
+export type AuthMode = "browser" | "apiKey"
+
 export interface TaruviConfig {
-    apiKey: string      // Identifies which site the client belongs to
+    /** Required when authMode is "apiKey" (default outside the browser) */
+    apiKey?: string
     appSlug: string     // Identifies which app the client belongs to
     apiUrl: string      // Base API URL
     deskUrl?: string    // URL for the desk/login page
-    token?: string      // Optional: Pre-existing auth token
+    /**
+     * Optional pre-seeded JWT access token.
+     * Supported in both browser and server environments.
+     * When provided, overrides any access token already stored in browser localStorage.
+     */
+    token?: string
+
+    /**
+     * Authentication mode.
+     * Defaults to "browser" when `window` exists, otherwise "apiKey".
+     */
+    authMode?: AuthMode
 }
 
 // Standard response wrapper matching backend AppDataResponse

@@ -19,7 +19,7 @@ export { App } from "./lib/app/AppClient.js"
 export { Analytics } from "./lib/analytics/AnalyticsClient.js"
 
 // Export core types
-export type { TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
+export type { AuthMode, TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
 export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
 
 // User types
@@ -42,7 +42,7 @@ export { isBackendFilterTreeRoot } from "./lib/database/types.js"
 export { SortOrder, DataFormat, GraphInclude, Visibility, MimeTypeCategory } from "./utils/enums.js"
 
 // Storage types
-export type { StorageRequest, StorageUpdateRequest, StorageObject, StorageResponse, StorageListResponse, StorageUploadBatchResponse, StorageDeleteBatchResponse, StorageAccessLinkResponse, StorageBrowseFolder, StorageBrowseFile, StorageBrowseData, StorageBrowseResponse, StorageBrowseFilters } from "./lib/storage/types.js"
+export type { StorageRequest, StorageUpdateRequest, StorageObject, StorageResponse, StorageListResponse, StorageUploadBatchResponse, StorageDeleteBatchResponse, StorageAccessLinkResponse, StorageBrowseFolder, StorageBrowseFile, StorageBrowseData, StorageBrowseResponse, StorageBrowseFilters, UploadData } from "./lib/storage/types.js"
 
 // Settings types
 export type { SiteSettingsData, SettingsResponse } from "./lib/settings/types.js"

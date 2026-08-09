@@ -2,7 +2,7 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest, BackendFilterTreeRoot } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterTreeRoot } from "./types.js";
 import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -163,6 +163,50 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
+    /**
+     * Semantic vector similarity search on a vector column.
+     * Mirrors Python SDK `vector_search`. Emits `${field}__vector_near` (JSON),
+     * `_topk`, and optional `_vector_threshold` / `_vector_ef_search` / `_vector_metric`.
+     */
+    vectorSearch(
+        field: string,
+        queryVector: number[],
+        options: {
+            topk?: number
+            threshold?: number
+            efSearch?: number
+            metric?: 'cosine' | 'l2' | 'ip'
+        } = {}
+    ): Database<T> {
+        const { topk = 10, threshold, efSearch, metric } = options
+
+        const vectorParams: DatabaseFilters = {
+            [`${field}__vector_near`]: JSON.stringify(queryVector),
+            _topk: topk,
+        }
+        if (threshold !== undefined) vectorParams._vector_threshold = threshold
+        if (efSearch !== undefined) vectorParams._vector_ef_search = efSearch
+        if (metric !== undefined) vectorParams._vector_metric = metric
+
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            ...vectorParams,
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
+    /**
+     * Enable hybrid search (vector + full-text fusion). Only emitted when combined
+     * with `vectorSearch()` (see buildRoute guard). Mirrors Python SDK `hybrid`.
+     */
+    hybrid(options: { strategy?: string; alpha?: number } = {}): Database<T> {
+        const { strategy = 'rrf', alpha = 0.5 } = options
+        return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
+            ...this.queryParams,
+            _hybrid_strategy: strategy,
+            _hybrid_alpha: alpha,
+        }, { ...this.graphParams }, this.isEdges)
+    }
+
     /** Restrict SELECT to named columns (`?fields=a,b,c`). */
     fields(columns: string): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
@@ -234,8 +278,11 @@ export class Database<T = Record<string, unknown>> {
 
     delete(recordIdOrEdgeIds: string | number[]): Database<T> {
         if (Array.isArray(recordIdOrEdgeIds)) {
-            const body: EdgeDeleteRequest = { edge_ids: recordIdOrEdgeIds }
-            return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, body, this.queryParams, { ...this.graphParams }, this.isEdges)
+            // Match Python SDK / backend: bulk edge (and record) delete via ?ids=
+            return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, {
+                ...this.queryParams,
+                ids: recordIdOrEdgeIds.join(','),
+            }, { ...this.graphParams }, this.isEdges)
         }
         return new Database<T>(this.client, { ...this.urlParams, recordId: recordIdOrEdgeIds }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
@@ -283,7 +330,28 @@ export class Database<T = Record<string, unknown>> {
             '/'
 
         // Merge database filters and graph params into one query string
-        const allParams: Record<string, unknown> = { ...this.queryParams, ...this.graphParams }
+        let allParams: Record<string, unknown> = { ...this.queryParams, ...this.graphParams }
+
+        // Hybrid params are only valid alongside a vector search (mirror Python's guard).
+        const hasVector = Object.keys(allParams).some((k) => k.endsWith('__vector_near'))
+        if (!hasVector) {
+            delete allParams._hybrid_strategy
+            delete allParams._hybrid_alpha
+        }
+
+        // deleteFiltered: backend expects ?filter=<json>
+        if (
+            this.operation === HttpMethod.DELETE &&
+            !this.urlParams.recordId &&
+            allParams.ids === undefined
+        ) {
+            allParams = {
+                filter: typeof allParams.filters === 'string'
+                    ? allParams.filters
+                    : JSON.stringify(allParams),
+            }
+        }
+
         return base + buildQueryString(allParams)
     }
 

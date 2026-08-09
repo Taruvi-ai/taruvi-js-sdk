@@ -3,6 +3,7 @@ import type { TokenClient } from "../token/TokenClient.js";
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
+import { isBrowser } from "../../utils/utils.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
@@ -20,22 +21,32 @@ import type { ErrorResponseBody } from "../errors/index.js";
 // Note: 403 Forbidden is intentionally excluded — it means authenticated but
 // lacking permission, so the token is still valid.
 const SESSION_INVALID_STATUSES = new Set([401, 410, 419])
+
+export type HttpGetOptions = {
+    responseType?: 'json' | 'blob' | 'arraybuffer'
+}
+
 export class HttpClient {
     private tokenClient: TokenClient
     private axiosInstance: AxiosInstance
+    private config: TaruviConfig
 
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
+        this.config = config
         this.tokenClient = tokenClient
         this.axiosInstance = axios.create({ baseURL: config.apiUrl, withCredentials: true })
         this.setupInterceptors()
     }
 
     private setupInterceptors(): void {
-        // Request interceptor: attach session token
+        // Request interceptor: attach credentials
         this.axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
             const isFormData = config.data instanceof FormData
             if (!isFormData) {
                 config.headers['Content-Type'] = 'application/json'
+            }
+            if (this.config.authMode === "apiKey" && this.config.apiKey) {
+                config.headers['Authorization'] = `Api-Key ${this.config.apiKey}`
             }
             const sessionToken = this.tokenClient.getSessionToken()
             if (sessionToken) {
@@ -75,7 +86,7 @@ export class HttpClient {
         throw error
     }
 
-    async get<T>(endpoint: string, options?: { responseType?: 'json' | 'blob' }): Promise<T> {
+    async get<T>(endpoint: string, options?: HttpGetOptions): Promise<T> {
         try {
             const { data } = await this.axiosInstance.get<T>(`/${endpoint}`, {
                 ...(options?.responseType && { responseType: options.responseType }),
@@ -84,6 +95,17 @@ export class HttpClient {
         } catch (error) {
             this.handleError(error)
         }
+    }
+
+    /**
+     * GET raw binary content.
+     * Browser → Blob; Node/server → ArrayBuffer.
+     */
+    async getBinary(endpoint: string): Promise<Blob | ArrayBuffer> {
+        if (isBrowser()) {
+            return this.get<Blob>(endpoint, { responseType: "blob" })
+        }
+        return this.get<ArrayBuffer>(endpoint, { responseType: "arraybuffer" })
     }
 
     async post<T, D = unknown>(endpoint: string, body: D): Promise<T> {
