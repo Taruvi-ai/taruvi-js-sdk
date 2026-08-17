@@ -61,7 +61,7 @@ Full guides live in **[docs/](docs/README.md)**:
 |--------|---------|
 | `Database` | Table CRUD, filters, pagination, graph/edges |
 | `Storage` | Bucket files: list, upload, download, delete |
-| `Auth` | Browser login/signup/logout, session token |
+| `Auth` | Browser login/signup/logout, `signInWithPassword`, session token |
 | `User` | User admin, roles, preferences |
 | `Functions` | Invoke serverless functions |
 | `Analytics` | Run predefined analytics queries |

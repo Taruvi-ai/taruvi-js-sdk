@@ -87,6 +87,13 @@ export class TokenClient {
     }
 
     /**
+     * Check if running in browser environment
+     */
+    isBrowserRuntime(): boolean {
+        return this.browserRunTime
+    }
+
+    /**
      * Clear session token
      */
     clearTokens(): void {

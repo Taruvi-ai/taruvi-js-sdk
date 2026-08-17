@@ -96,6 +96,72 @@ export class Auth {
     }
 
     /**
+     * Sign in with email and password 
+     * @param email - User's email address
+     * @param password - User's password
+     * @returns Promise that resolves to true on successful login
+     * @throws Error if credentials are invalid or login fails
+     */
+    async signInWithPassword(
+        email: string,
+        password: string,
+    ): Promise<boolean | string> {
+        try {
+            const response = await this.client.httpClient.post<{
+                meta?: { session_token?: string }
+                session_token?: string
+                user?: unknown
+                methods?: unknown[]
+            }>(AuthRoutes.login(), { email, password })
+
+            const sessionToken =
+                (typeof response?.meta?.session_token === "string" &&
+                    response.meta.session_token) ||
+                (typeof response?.session_token === "string" &&
+                    response.session_token) ||
+                null
+
+            if (!sessionToken) {
+                throw new Error("Login succeeded but no session_token was returned")
+            }
+
+            // Server: return the token to the caller.
+            if (!this.client.tokenClient.isBrowserRuntime()) {
+                return sessionToken
+            }
+
+            // Browser: store the token in the TokenClient.
+            this.client.tokenClient.setTokens({ sessionToken })
+
+            return true
+        } catch (error: unknown) {
+            const err = error as {
+                statusCode?: number
+                code?: string
+                errors?: unknown
+                data?: { errors?: Array<{ code?: string }> }
+                message?: string
+            }
+
+            const mismatchCode =
+                err?.data?.errors?.[0]?.code === "email_password_mismatch" ||
+                (Array.isArray(err?.errors) &&
+                    (err.errors as Array<{ code?: string }>)[0]?.code ===
+                        "email_password_mismatch")
+
+            if (err?.statusCode === 400 || mismatchCode) {
+                throw new Error("Invalid email or password")
+            }
+
+            if (error instanceof Error) {
+                throw error
+            }
+
+            throw new Error("Unable to sign in. Please try again.")
+        }
+    }
+
+    /**
      * Check if a session token exists locally (does not validate with server)
      */
     hasToken(): boolean {
