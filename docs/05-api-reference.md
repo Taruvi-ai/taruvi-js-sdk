@@ -310,6 +310,17 @@ For complex AND/OR logic, use `filters(tree)` with `BackendFilterTreeRoot` — r
 
 ---
 
+## Billing
+
+```typescript
+const result = await checkBilling(client, organizationSlug)
+if (result.status === "billing_error") console.log(result.error.message)
+```
+
+`result.status` is `"ok"`, `"billing_error"`, or `"skipped"`.
+
+---
+
 ## Next steps
 
 [Examples](06-examples.md) — practical chaining patterns.

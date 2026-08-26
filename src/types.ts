@@ -1,11 +1,15 @@
 import { MimeTypeCategory, Visibility } from './utils/enums.js'
 
+export type AuthMode = "browser" | "apiKey"
+
 export interface TaruviConfig {
-    apiKey: string      // Identifies which site the client belongs to
+    apiKey?: string
     appSlug: string     // Identifies which app the client belongs to
     apiUrl: string      // Base API URL
+    authMode?: AuthMode
     deskUrl?: string    // URL for the desk/login page
     token?: string      // Optional: Pre-existing auth token
+    autoHandleRedirect?: boolean
 }
 
 // Standard response wrapper matching backend AppDataResponse

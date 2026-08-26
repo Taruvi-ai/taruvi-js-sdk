@@ -21,10 +21,12 @@ import type { ErrorResponseBody } from "../errors/index.js";
 // lacking permission, so the token is still valid.
 const SESSION_INVALID_STATUSES = new Set([401, 410, 419])
 export class HttpClient {
+    private config: TaruviConfig
     private tokenClient: TokenClient
     private axiosInstance: AxiosInstance
 
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
+        this.config = config
         this.tokenClient = tokenClient
         this.axiosInstance = axios.create({ baseURL: config.apiUrl, withCredentials: true })
         this.setupInterceptors()
@@ -37,6 +39,11 @@ export class HttpClient {
             if (!isFormData) {
                 config.headers['Content-Type'] = 'application/json'
             }
+
+            if (this.config.authMode === "apiKey" && this.config.apiKey) {
+                config.headers['Authorization'] = `Api-Key ${this.config.apiKey}`
+            }
+
             const sessionToken = this.tokenClient.getSessionToken()
             if (sessionToken) {
                 config.headers['X-Session-Token'] = sessionToken

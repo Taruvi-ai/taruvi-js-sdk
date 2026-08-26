@@ -130,6 +130,14 @@ export class Auth {
         return this.client.tokenClient.getSessionToken()
     }
 
+    setSessionToken(token: string): void {
+        this.client.tokenClient.setAccessToken(token)
+    }
+
+    clearSession(): void {
+        this.client.tokenClient.clearTokens()
+    }
+
     /**
      * Get current user from API
      * @returns Promise with user data or null if not authenticated
