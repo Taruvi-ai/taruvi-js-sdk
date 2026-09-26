@@ -18,9 +18,15 @@ describe('Client', () => {
             expect(() => new Client(undefined as any)).toThrow('Config is required')
         })
 
-        it('throws error when apiKey is missing', () => {
-            expect(() => new Client({ apiUrl: 'https://api.test.com', appSlug: 'test' } as any))
-                .toThrow('API key is required')
+        it('does not require apiKey', () => {
+            expect(() => new Client({ apiUrl: 'https://api.test.com', appSlug: 'test' })).not.toThrow()
+        })
+
+        it('identifies the SDK and version on every request', () => {
+            const client = new Client({ apiUrl: 'https://api.test.com', appSlug: 'test' })
+            const defaults = (client.httpClient as unknown as { axiosInstance: { defaults: { headers: Record<string, unknown> } } })
+                .axiosInstance.defaults.headers
+            expect(defaults['X-Taruvi-Client']).toBe(`taruvi-js/${packageJson.version} (server)`)
         })
 
         it('throws error when apiUrl is missing', () => {
@@ -83,5 +89,16 @@ describe('Client', () => {
             const client = new Client(config)
             expect(client.getConfig().deskUrl).toBe('https://desk.test.com')
         })
+    })
+
+    it('removes trailing slashes from apiUrl and deskUrl', () => {
+        const client = new Client({
+            apiKey: 'k',
+            appSlug: 'app',
+            apiUrl: 'https://api.test.com/',
+            deskUrl: 'https://desk.test.com//',
+        })
+        expect(client.getConfig().apiUrl).toBe('https://api.test.com')
+        expect(client.getConfig().deskUrl).toBe('https://desk.test.com')
     })
 })

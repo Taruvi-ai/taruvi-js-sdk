@@ -1,7 +1,9 @@
 import { HttpClient } from "./lib-internal/http/HttpClient.js";
 import { TokenClient } from "./lib-internal/token/TokenClient.js";
+import { captureSessionFromUrl } from "./lib-internal/token/redirect.js";
+import { getRuntimeEnvironment } from "./utils/utils.js";
 import type { TaruviConfig } from "./types.js";
-import packageJson from "../package.json" with { type: "json" };
+import { SDK_VERSION } from "./version.js";
 
 export class Client {
     private readonly config: TaruviConfig
@@ -13,15 +15,27 @@ export class Client {
             throw new Error("Config is required")
         }
 
-        if (!config.apiKey) {
-            throw new Error("API key is required")
-        }
-
         if (!config.apiUrl) {
             throw new Error("API URL is required")
         }
 
-        this.config = config
+        const authMode = config.authMode ?? "session"
+        if (authMode === "apiKey") {
+            if (!config.apiKey) {
+                throw new Error('authMode "apiKey" requires apiKey')
+            }
+            if (getRuntimeEnvironment() !== "Server") {
+                throw new Error('authMode "apiKey" is for server code only; never ship an API key to a browser or mobile app')
+            }
+        }
+
+        // Accept site and sign-in URLs with or without a trailing slash.
+        this.config = {
+            ...config,
+            authMode,
+            apiUrl: config.apiUrl.replace(/\/+$/, ""),
+            ...(config.deskUrl && { deskUrl: config.deskUrl.replace(/\/+$/, "") }),
+        }
 
         // Internal clients for SDK use only
         // TokenClient must be created first, then passed to HttpClient
@@ -29,41 +43,11 @@ export class Client {
         this._tokenClient = new TokenClient(config.token)
         this._httpClient = new HttpClient(this.config, this._tokenClient)
 
-        // Check URL hash for tokens (OAuth callback)
-        this.extractTokensFromUrl()
-
-        console.info(`Taruvi SDK v${packageJson.version} initialized`)
-    }
-
-    /**
-     * Extracts session token from URL hash and stores it using TokenClient.
-     * Handles callback URLs like: #session_token=xxx
-     * After extraction, the URL hash is cleared.
-     */
-    private extractTokensFromUrl(): void {
-        if (typeof window === "undefined" || typeof localStorage === "undefined") {
-            return
+        if (authMode === "session" && config.detectSessionInUrl !== false) {
+            captureSessionFromUrl(this._tokenClient)
         }
 
-        const hash = window.location.hash
-        if (!hash) {
-            return
-        }
-
-        const params = new URLSearchParams(hash.substring(1))
-        const sessionToken = params.get("session_token")
-
-        if (!sessionToken) {
-            return
-        }
-
-        this._tokenClient.setTokens({ sessionToken })
-
-        // Clear hash from URL without reloading page
-        if (window.history && window.history.replaceState) {
-            const urlWithoutHash = window.location.pathname + window.location.search
-            window.history.replaceState(null, "", urlWithoutHash)
-        }
+        console.info(`Taruvi SDK v${SDK_VERSION} initialized`)
     }
 
     /**

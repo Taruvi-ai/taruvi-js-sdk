@@ -1,11 +1,31 @@
 import { MimeTypeCategory, Visibility } from './utils/enums.js'
 
+/**
+ * How requests authenticate.
+ * - `"session"` (default): the signed-in user's session, from hosted sign-in or `token`.
+ * - `"apiKey"`: an API key, for server code only. Requests act as the key's creator.
+ */
+export type AuthMode = "session" | "apiKey"
+
 export interface TaruviConfig {
-    apiKey: string      // Identifies which site the client belongs to
-    appSlug: string     // Identifies which app the client belongs to
-    apiUrl: string      // Base API URL
-    deskUrl?: string    // URL for the desk/login page
-    token?: string      // Optional: Pre-existing auth token
+    /** Site address, `TARUVI_SITE_URL`. */
+    apiUrl: string
+    /** App slug, `TARUVI_APP_SLUG`. */
+    appSlug: string
+    /** Defaults to `"session"`. */
+    authMode?: AuthMode
+    /** API key, sent only with `authMode: "apiKey"`. Never ship one to a browser or mobile app. */
+    apiKey?: string
+    /** Session token for Node.js and React Native in session mode. Browsers read it from sign-in. */
+    token?: string
+    /** Host of the hosted sign-in pages. Defaults to `apiUrl`. */
+    deskUrl?: string
+    /**
+     * Capture `#session_token` from the address when the client is created. Defaults to `true`.
+     * Set it to `false` and call `Auth.handleRedirect()` yourself, for example in a
+     * Next.js client component effect.
+     */
+    detectSessionInUrl?: boolean
 }
 
 // Standard response wrapper matching backend AppDataResponse

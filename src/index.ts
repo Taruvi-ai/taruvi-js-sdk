@@ -2,9 +2,9 @@
 export { Client } from "./client.js"
 
 // Export error classes
-export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, RateLimitError } from "./lib-internal/errors/index.js"
+export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, RateLimitError, BillingError } from "./lib-internal/errors/index.js"
 export { ErrorCode } from "./lib-internal/errors/index.js"
-export type { ErrorResponseBody } from "./lib-internal/errors/index.js"
+export type { ErrorResponseBody, BillingErrorCode } from "./lib-internal/errors/index.js"
 
 // Export public client classes
 export { Auth } from "./lib/auth/AuthClient.js"
@@ -19,7 +19,7 @@ export { App } from "./lib/app/AppClient.js"
 export { Analytics } from "./lib/analytics/AnalyticsClient.js"
 
 // Export core types
-export type { TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
+export type { AuthMode, TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
 export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
 
 // User types

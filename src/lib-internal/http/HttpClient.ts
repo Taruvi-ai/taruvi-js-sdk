@@ -3,6 +3,7 @@ import type { TokenClient } from "../token/TokenClient.js";
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
 import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
+import { clientIdentifier } from "../../version.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
@@ -20,26 +21,47 @@ import type { ErrorResponseBody } from "../errors/index.js";
 // Note: 403 Forbidden is intentionally excluded — it means authenticated but
 // lacking permission, so the token is still valid.
 const SESSION_INVALID_STATUSES = new Set([401, 410, 419])
+
+// Retry-After is either delay-seconds or an HTTP date (RFC 9110 §10.2.3).
+function parseRetryAfter(value: unknown): number | undefined {
+    if (typeof value !== "string" || value.trim() === "") return undefined
+    const seconds = Number(value)
+    if (Number.isFinite(seconds)) return Math.max(0, seconds)
+    const date = Date.parse(value)
+    if (Number.isNaN(date)) return undefined
+    return Math.max(0, Math.ceil((date - Date.now()) / 1000))
+}
 export class HttpClient {
     private tokenClient: TokenClient
     private axiosInstance: AxiosInstance
+    private apiKey: string | undefined
 
     constructor(config: TaruviConfig, tokenClient: TokenClient) {
         this.tokenClient = tokenClient
-        this.axiosInstance = axios.create({ baseURL: config.apiUrl, withCredentials: true })
+        this.apiKey = config.authMode === "apiKey" ? config.apiKey : undefined
+        this.axiosInstance = axios.create({
+            baseURL: config.apiUrl,
+            withCredentials: true,
+            headers: { "X-Taruvi-Client": clientIdentifier() },
+        })
         this.setupInterceptors()
     }
 
     private setupInterceptors(): void {
-        // Request interceptor: attach session token
+        // Request interceptor: attach exactly one credential. Endpoints check
+        // credentials in different orders, so sending two could mix identities.
         this.axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
             const isFormData = config.data instanceof FormData
             if (!isFormData) {
                 config.headers['Content-Type'] = 'application/json'
             }
-            const sessionToken = this.tokenClient.getSessionToken()
-            if (sessionToken) {
-                config.headers['X-Session-Token'] = sessionToken
+            if (this.apiKey) {
+                config.headers['Authorization'] = `Api-Key ${this.apiKey}`
+            } else {
+                const sessionToken = this.tokenClient.getSessionToken()
+                if (sessionToken) {
+                    config.headers['X-Session-Token'] = sessionToken
+                }
             }
             return config
         })
@@ -67,7 +89,7 @@ export class HttpClient {
         if (error instanceof AxiosError) {
             if (error.response) {
                 const body = error.response.data as ErrorResponseBody | undefined
-                throw createErrorFromResponse(error.response.status, body)
+                throw createErrorFromResponse(error.response.status, body, parseRetryAfter(error.response.headers?.["retry-after"]))
             }
             throw new NetworkError(error.message)
         }

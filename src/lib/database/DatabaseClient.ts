@@ -2,9 +2,15 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, EdgeDeleteRequest, BackendFilterTreeRoot } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterTreeRoot } from "./types.js";
 import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
+
+// Query params that shape a list response rather than select rows.
+const NON_FILTER_PARAMS = new Set([
+    'page', 'page_size', 'ordering', 'populate', 'search', 'fields',
+    'allowed_actions', '_aggregate', '_group_by', '_having',
+])
 
 interface GraphQueryParams {
     include?: GraphInclude
@@ -234,8 +240,8 @@ export class Database<T = Record<string, unknown>> {
 
     delete(recordIdOrEdgeIds: string | number[]): Database<T> {
         if (Array.isArray(recordIdOrEdgeIds)) {
-            const body: EdgeDeleteRequest = { edge_ids: recordIdOrEdgeIds }
-            return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, body, this.queryParams, { ...this.graphParams }, this.isEdges)
+            // The data endpoint deletes several rows by `?ids=`; it ignores a JSON body.
+            return this.bulkDelete(recordIdOrEdgeIds.map(String))
         }
         return new Database<T>(this.client, { ...this.urlParams, recordId: recordIdOrEdgeIds }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
@@ -247,12 +253,28 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
+    /**
+     * Deletes every row that matches the current filters. The data endpoint reads
+     * them from a single `?filter=` JSON object, so the flat filter keys and any
+     * JSON `filters` tree are moved into it.
+     */
     deleteFiltered(): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, this.queryParams, { ...this.graphParams }, this.isEdges)
+        const filter: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(this.queryParams ?? {})) {
+            if (value !== undefined && !NON_FILTER_PARAMS.has(key)) filter[key] = value
+        }
+        if (Object.keys(filter).length === 0) {
+            throw new Error('deleteFiltered() requires at least one filter. Call .filters(...) first.')
+        }
+        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, {
+            filter: JSON.stringify(filter)
+        }, { ...this.graphParams }, this.isEdges)
     }
 
     async first(): Promise<T | null> {
-        const response = await this.execute()
+        // A list read only needs one row; a single-record read is left as is.
+        const isListRead = !this.urlParams.recordId && (this.operation === undefined || this.operation === HttpMethod.GET)
+        const response = await (isListRead ? this.pageSize(1) : this).execute()
         const data = response.data
         if (Array.isArray(data)) {
             return data[0] ?? null
@@ -261,7 +283,8 @@ export class Database<T = Record<string, unknown>> {
     }
 
     async count(): Promise<number> {
-        const response = await this.execute()
+        // One row is enough: with a page size the platform also returns the full total.
+        const response = await (this.urlParams.recordId ? this : this.pageSize(1)).execute()
         if (response.total !== undefined) {
             return response.total
         }

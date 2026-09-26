@@ -26,7 +26,7 @@ describe('Functions', () => {
 
             expect(mockHttpClient.post).toHaveBeenCalledWith(
                 'api/apps/test-app/functions/my-function/execute/',
-                { async: false, params: {} }
+                { params: {} }
             )
             expect(result).toEqual(response)
         })
@@ -42,7 +42,7 @@ describe('Functions', () => {
 
             expect(mockHttpClient.post).toHaveBeenCalledWith(
                 'api/apps/test-app/functions/my-function/execute/',
-                { async: false, params: { key1: 'value1', key2: 123 } }
+                { params: { key1: 'value1', key2: 123 } }
             )
         })
 
