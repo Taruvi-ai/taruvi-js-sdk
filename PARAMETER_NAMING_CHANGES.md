@@ -1,6 +1,6 @@
 # Parameter Naming Change: baseUrl → apiUrl
 
-> **Changelog / historical.** Use `apiUrl` in new code. User guide: **[docs/README.md](docs/README.md)**.
+> **Changelog / historical.** Use `apiUrl` in new code. User guide: **[public SDK documentation](README.md#documentation)**.
 
 **Date**: 2026-01-22  
 **Status**: ✅ Completed

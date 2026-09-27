@@ -1,141 +1,92 @@
 # Architecture
 
-This page explains how the SDK is organized, how a request flows from your code to the Taruvi API, and what you should import as an application developer.
+The SDK has one configured `Client`, public service classes, and a shared
+transport. Services receive the client in their constructor; they do not create
+independent credential stores or Axios instances.
 
-## High-level request flow
+## Code map
 
-```mermaid
-flowchart LR
-  AppCode[App_code] --> Client[Client]
-  Client --> TokenClient[TokenClient]
-  Client --> HttpClient[HttpClient]
-  Database[Database_Storage_App_Secrets] --> Routes[Route_builders]
-  Auth[Auth_User_Policy_etc] --> Routes
-  Routes --> HttpClient
-  HttpClient --> Backend[Taruvi_API]
-  TokenClient -.->|session_token_header| HttpClient
-```
+| Boundary | Source | Responsibility |
+| --- | --- | --- |
+| Public entry point | [`src/index.ts`](../src/index.ts) | Exported clients, errors, types, and runtime enums |
+| Configuration | [`src/client.ts`](../src/client.ts), [`src/types.ts`](../src/types.ts) | Validate configuration and wire the transport and token store |
+| Services | [`src/lib/`](../src/lib/) | Domain operations and request builders |
+| Transport | [`HttpClient.ts`](../src/lib-internal/http/HttpClient.ts) | Axios requests, credential headers, and error conversion |
+| Session state | [`TokenClient.ts`](../src/lib-internal/token/TokenClient.ts), [`redirect.ts`](../src/lib-internal/token/redirect.ts) | Runtime-specific session storage and redirect capture |
+| Routes | [`src/lib-internal/routes/`](../src/lib-internal/routes/) | Endpoint paths |
+| Errors | [`src/lib-internal/errors/`](../src/lib-internal/errors/) | Error classes and response mapping |
+| Shared utilities | [`src/utils/`](../src/utils/), [`src/version.ts`](../src/version.ts) | Query serialization, runtime detection, and client identification |
 
-1. You create a [`Client`](../src/client.ts) with `TaruviConfig`.
-2. `Client` constructs internal `TokenClient` and `HttpClient`.
-3. Public service classes (`Database`, `Auth`, …) use route helpers to build URLs and call `client.httpClient`.
-4. `HttpClient` attaches the session token (`X-Session-Token`), sends requests with `withCredentials: true` (cookies when applicable), and maps HTTP errors to typed SDK errors.
+`src/lib/` contains Auth, User, Database, Storage, App, Functions, Analytics,
+Secrets, Settings, and Policy. Module-specific contracts sit beside their
+clients; shared configuration and response types live in `src/types.ts`.
 
-### Authentication headers
+## Configuration and credentials
 
-| Mechanism | Used by SDK today |
-|-----------|-------------------|
-| `X-Session-Token` | Yes — session token from login or `Client` config `token` |
-| `apiKey` in config | Required on `Client`; stored in `TaruviConfig` and validated at construction. **Not** sent as an HTTP header by the current `HttpClient`. Identify your site when creating the client; use session token for authenticated API calls. |
-| Cookies | Axios `withCredentials: true` — backend may use cookies alongside the session header |
+`Client` requires a configuration and `apiUrl`, normalizes trailing slashes on
+`apiUrl`/`deskUrl`, and defaults `authMode` to `session`. `appSlug` is required by
+the TypeScript configuration type. `getConfig()` returns a shallow copy.
 
-## `src/lib` vs `src/lib-internal`
+| Mode | Request header | Configuration |
+| --- | --- | --- |
+| `session` | `X-Session-Token` when a token is available | Browser storage, or `token` outside the browser |
+| `apiKey` | `Authorization: Api-Key …` | Requires `apiKey`; construction rejects browser and React Native runtimes |
 
-| Layer | Path | Audience | Responsibility |
-|-------|------|----------|----------------|
-| **Public** | [`src/lib/`](../src/lib/) | Application developers | Domain-facing APIs: auth, users, database, storage, etc. |
-| **Internal** | [`src/lib-internal/`](../src/lib-internal/) | SDK maintainers | HTTP transport, token storage, URL route builders, error mapping |
+The request interceptor selects one SDK credential header. Session mode ignores
+a leftover `apiKey`; API-key mode does not attach a session-token header.
+Axios also has `withCredentials: true`, so this does not disable applicable
+browser cookies. `X-Taruvi-Client` identifies the package version and runtime.
 
-### Public modules (`src/lib/`)
+Browser sessions use `localStorage`; other runtimes hold their supplied token
+in memory. In session mode, the client captures a sign-in fragment unless
+`detectSessionInUrl` is false. `Auth.handleRedirect()` uses the same helper.
+It removes sign-in fragment fields while preserving other fragment parameters
+and the router's history state.
 
-Each feature is a folder with a `*Client.ts` and `types.ts`:
+[`Auth`](../src/lib/auth/AuthClient.ts) separates a local `hasToken()` check from
+`isUserAuthenticated(): Promise<boolean>`, which validates the session with the
+server. `validateSession()` rejects on failure. Login/signup use the hosted
+`deskUrl` or `apiUrl`; logout clears the local token and redirects in a browser.
+Outside the browser, logout only clears the token.
 
-| Module | Client class |
-|--------|--------------|
-| `auth/` | `Auth` |
-| `users/` | `User` |
-| `database/` | `Database` |
-| `storage/` | `Storage` |
-| `functions/` | `Functions` |
-| `analytics/` | `Analytics` |
-| `settings/` | `Settings` |
-| `secrets/` | `Secrets` |
-| `policy/` | `Policy` |
-| `app/` | `App` |
+## Request and error flow
 
-Import these from `@taruvi/sdk` — see [`src/index.ts`](../src/index.ts).
+Services construct an endpoint, select an HTTP method, and call the transport.
+Builders delay the network request until a terminal method; see
+[builder design](02-builder-pattern.md).
 
-### Internal modules (`src/lib-internal/`)
+Pass endpoints to `HttpClient` without a leading slash: the transport adds one.
+An endpoint beginning with `/` would become a protocol-relative `//…` URL and
+can bypass the configured base URL. Route segments may have leading slashes;
+the complete endpoint passed to the transport must not.
 
-| Module | Purpose |
-|--------|---------|
-| [`http/HttpClient.ts`](../src/lib-internal/http/HttpClient.ts) | Axios wrapper; adds auth header; clears tokens on 401; maps errors |
-| [`token/TokenClient.ts`](../src/lib-internal/token/TokenClient.ts) | Session token in `localStorage` (browser) or memory (server) |
-| [`routes/*.ts`](../src/lib-internal/routes/) | Pure functions that build URL paths per service |
-| [`errors/`](../src/lib-internal/errors/) | `TaruviError`, `AuthError`, `NotFoundError`, etc. + `createErrorFromResponse` |
+Database routes include `datatables/{table}/data/`. Storage paths are encoded
+per segment so `/` remains a path separator; metadata updates use PATCH.
+Check the service tests when changing either route convention.
 
-You typically **do not** import route builders or `HttpClient` in application code. Service clients encapsulate them.
+The transport unwraps the Axios response to its body, preserving the Taruvi
+response envelope where the endpoint returns one. Downloads request `blob`;
+JSON requests use `application/json`, while `FormData` lets Axios set the
+multipart boundary.
 
-### Endpoint paths and `baseURL` (maintainers)
+On HTTP 401, 410, or 419, the interceptor clears the session; 403 keeps it.
+The error factory maps responses to SDK errors and gives billing error codes
+precedence over status-only mapping. Ordinary rate limits expose parsed
+`Retry-After` seconds. Transport failures without a response become
+`NetworkError`. The transport does not retry automatically.
 
-[`HttpClient`](../src/lib-internal/http/HttpClient.ts) prepends a `/` to the endpoint on every request (for example `` `/${endpoint}` `` in `get`, `post`, `patch`, etc.).
+## Public API and package boundary
 
-If the endpoint string already starts with `/`, the final path becomes a **double slash** — e.g. endpoint `/api/v4/users/logout` becomes `//api/v4/users/logout`. When Axios sees a path starting with `//`, it treats it as a **protocol-relative URL**, which **bypasses `baseURL`**. The request may leave your configured `apiUrl` and fail or hit the wrong host.
+Only declarations exported by `src/index.ts` are supported package imports.
+`Client.httpClient` and `Client.tokenClient` are marked `@internal`.
+The error classes are public; `createErrorFromResponse` is an internal factory.
 
-**When adding or reviewing SDK routes and internal HTTP calls:** pass endpoints **without** a leading slash (e.g. `api/v4/users/logout`, not `/api/v4/users/logout`). `Auth.logout()` follows this pattern when calling `httpClient.post('api/v4/users/logout', {})`.
+[`package.json`](../package.json) exports `dist/index.js` and `dist/index.d.ts`.
+[`tsconfig.json`](../tsconfig.json) uses NodeNext modules and emits declarations,
+source maps, and declaration maps. The package is ESM-only. `src/version.ts`
+reads `package.json` using a JSON import attribute.
 
-### What is exported anyway?
-
-[`src/index.ts`](../src/index.ts) exports:
-
-- `Client` and all public service classes
-- Error classes and `ErrorCode` (from `lib-internal/errors`)
-- `AuthTokens` type (from internal token client)
-- Shared and per-module TypeScript types
-
-`Client.httpClient` and `Client.tokenClient` are marked `@internal` — for SDK/tests only.
-
-## Root `Client`
-
-[`src/client.ts`](../src/client.ts) is the single entry point for configuration:
-
-- Validates `apiKey` and `apiUrl`
-- Wires `TokenClient` → `HttpClient`
-- Extracts `session_token` from URL hash on OAuth callback (browser only)
-- Exposes `getConfig()` as a read-only copy
-
-Service classes take `Client` in their constructor and read config via `client.getConfig()`.
-
-## Route builders
-
-Route modules encode URL structure so clients stay readable. Example — database:
-
-```
-api/apps/{appSlug}/datatables/{tableName}/[{recordId}/][upsert/]?{query}
-```
-
-`Database.buildRoute()` combines `DatabaseRoutes` segments with `buildQueryString()` from [`src/utils/utils.ts`](../src/utils/utils.ts).
-
-Similar modules exist for Storage, User, Functions, Analytics, Policy, Secrets, App, and Settings.
-
-## Error handling
-
-Failed HTTP responses are converted to typed errors (`AuthError`, `NotFoundError`, `ValidationError`, …) via `createErrorFromResponse`. Import these from `@taruvi/sdk` to handle failures in `try/catch`:
-
-```typescript
-import { AuthError, NotFoundError } from '@taruvi/sdk'
-
-try {
-  await new Database(client).from('accounts').get('missing').execute()
-} catch (e) {
-  if (e instanceof NotFoundError) { /* ... */ }
-}
-```
-
-## Utilities
-
-[`src/utils/`](../src/utils/) holds shared helpers:
-
-- `buildQueryString` — serializes filter objects to query strings
-- `enums.ts` — `MimeTypeCategory`, `Visibility`, etc.
-
-## Backend contract reference
-
-For how SDK query params map to backend behavior (PostgREST-style data API, Cerbos policy, etc.), see [SDK_DESIGN_CONTEXT.md](../SDK_DESIGN_CONTEXT.md).
-
-**Note:** That document describes the broader platform (including JWT Bearer in some flows). **This SDK** uses the **Web UI Flow** and **`X-Session-Token`** for app API calls — see [Introduction — Authentication flow](01-introduction.md#authentication-flow-web-ui-flow). Prefer the guides in `docs/` for SDK usage.
-
-## Next steps
-
-- [Clients](04-clients.md) — when to use each public service
-- [API reference](05-api-reference.md) — full method list
+Axios `>=1 <2` is the only peer dependency. TypeScript and `@types/node` are
+development dependencies. The package's file allowlist is `dist` and `README.md`;
+npm also includes its package metadata. `docs/` is not shipped. Verify the
+actual archive using the [release instructions](08-releases-and-branches.md).
