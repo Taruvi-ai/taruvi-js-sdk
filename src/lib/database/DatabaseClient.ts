@@ -6,7 +6,6 @@ import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, E
 import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
-// Query params that shape a list response rather than select rows.
 // Query params that are not filter conditions. A filtered delete leaves out the
 // ones that only shape a read, and refuses the ones that narrow which rows match:
 // dropping those would delete more rows than the same query reads.
