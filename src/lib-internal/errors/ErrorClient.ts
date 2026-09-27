@@ -107,8 +107,8 @@ export class BillingError extends TaruviError {
     /** Only `gate_unavailable` is worth retrying. */
     public readonly retryable: boolean
 
-    constructor(message: string, statusCode: number, code: BillingErrorCode, module?: string) {
-        super(message, statusCode, code)
+    constructor(message: string, statusCode: number, code: BillingErrorCode, module?: string, detail?: string) {
+        super(message, statusCode, code, detail)
         this.name = 'BillingError'
         this.module = module
         this.retryable = code === ErrorCode.GATE_UNAVAILABLE
@@ -121,7 +121,7 @@ export function createErrorFromResponse(statusCode: number, body?: ErrorResponse
     const code = body?.code || ErrorCode.INTERNAL_ERROR
 
     if (BILLING_CODES.has(code)) {
-        return new BillingError(message, statusCode, code as BillingErrorCode, body?.module)
+        return new BillingError(message, statusCode, code as BillingErrorCode, body?.module, body?.detail)
     }
     const detail = body?.detail
     const errors = body?.errors

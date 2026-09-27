@@ -113,6 +113,7 @@ describe('billing refusals', () => {
         expect(err).toBeInstanceOf(BillingError)
         expect(err).not.toBeInstanceOf(RateLimitError)
         expect(err.message).toBe('Blocked by billing')
+        expect(err.detail).toBe('Blocked by billing')
         expect((err as BillingError).module).toBe('database')
         expect((err as BillingError).retryable).toBe(retryable)
         expect(err.statusCode).toBe(status)
