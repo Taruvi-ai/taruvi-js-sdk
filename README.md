@@ -2,7 +2,7 @@
 
 TypeScript SDK for the Taruvi platform. It gives developers a **consistent, typed way to query the Taruvi backend** — shared configuration, session authentication, fluent query builders, and structured errors across data, storage, auth, users, functions, analytics, policy, secrets, and app services.
 
-**Package:** `@taruvi/sdk` · **Version:** 1.5.0-beta.1 · **License:** MIT
+**Package:** `@taruvi/sdk` · **Version:** 1.5.4 · **License:** MIT
 
 **Branches:** `main` is for **stable** releases; `beta` is for **experimental** releases. Bumping `version` in `package.json` and pushing to either branch triggers CI/CD (`npm test`, then publish to npm with the matching tag). See [Releases and branches](docs/08-releases-and-branches.md).
 
@@ -16,17 +16,17 @@ npm install @taruvi/sdk
 npm install @taruvi/sdk@beta
 ```
 
-**Peer dependencies:** `axios` (>=1), `typescript` (>=5.7), optional `@types/node` for server use.
+**Peer dependency:** `axios` (>=1).
 
 ## Quick start
 
 ```typescript
 import { Client, Database } from '@taruvi/sdk'
 
+// In the browser, requests use the signed-in user's session.
 const client = new Client({
-  apiKey: 'your-site-api-key',
-  appSlug: 'your-app-slug',
   apiUrl: 'https://taruvi-site.taruvi.cloud',
+  appSlug: 'your-app-slug',
 })
 
 const db = new Database(client)
@@ -38,6 +38,17 @@ const response = await db
   .page(1)
   .pageSize(20)
   .execute()
+```
+
+Server code that runs without a signed-in user can use an API key instead. Never ship one to a browser or mobile app:
+
+```typescript
+const serverClient = new Client({
+  apiUrl: process.env.TARUVI_SITE_URL!,
+  appSlug: process.env.TARUVI_APP_SLUG!,
+  authMode: 'apiKey',
+  apiKey: process.env.TARUVI_API_KEY!,
+})
 ```
 
 ## Documentation
