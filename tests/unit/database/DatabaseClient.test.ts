@@ -295,6 +295,15 @@ describe('Database', () => {
             expect(url).toContain('status=open')
         })
 
+        it('keeps the requested page and page size, returning that page\'s first row', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '21' }, { id: '22' }] })
+            const result = await new Database(mockClient).from('accounts').page(2).pageSize(20).first()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).toContain('page=2')
+            expect(url).toContain('page_size=20')
+            expect(result).toEqual({ id: '21' })
+        })
+
         it('does not add page_size to a single-record read', async () => {
             mockHttpClient.get.mockResolvedValue({ data: { id: '1' } })
             await new Database(mockClient).from('accounts').get('1').first()
@@ -605,13 +614,26 @@ describe('Database', () => {
             expect(url).not.toContain('/undefined/')
         })
 
-        it('moves a JSON filter tree into the filter object and drops list-only params', async () => {
+        it('moves a JSON filter tree into the filter object and drops read-only params', async () => {
             mockHttpClient.delete.mockResolvedValue({ status: 'success' })
             const tree = [{ operator: 'or' as const, value: [{ field: 'status', operator: 'eq', value: 'done' }] }]
-            await new Database(mockClient).from('tasks').filters(tree).page(2).pageSize(10).deleteFiltered().execute()
+            await new Database(mockClient).from('tasks').filters(tree).sort('title').populate(['owner']).deleteFiltered().execute()
             const url: string = mockHttpClient.delete.mock.calls[0][0]
             const filter = JSON.parse(new URLSearchParams(url.split('?')[1]).get('filter') as string)
             expect(filter).toEqual({ filters: JSON.stringify(tree) })
+        })
+
+        it('refuses search, which it cannot honor, instead of deleting the wider set', () => {
+            expect(() => new Database(mockClient).from('tasks').search('needle').filters('status', 'eq', 'archived').deleteFiltered())
+                .toThrow("can't narrow a delete by search")
+            expect(mockHttpClient.delete).not.toHaveBeenCalled()
+        })
+
+        it('refuses pagination and aggregation', () => {
+            expect(() => new Database(mockClient).from('tasks').filters('status', 'eq', 'archived').page(2).pageSize(10).deleteFiltered())
+                .toThrow("can't narrow a delete by page, page_size")
+            expect(() => new Database(mockClient).from('tasks').filters('status', 'eq', 'archived').aggregate('count(*)').deleteFiltered())
+                .toThrow("can't narrow a delete by _aggregate")
         })
 
         it('throws before sending a request when no filter is set', () => {

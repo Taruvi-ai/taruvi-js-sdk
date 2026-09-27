@@ -7,10 +7,11 @@ import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
 // Query params that shape a list response rather than select rows.
-const NON_FILTER_PARAMS = new Set([
-    'page', 'page_size', 'ordering', 'populate', 'search', 'fields',
-    'allowed_actions', '_aggregate', '_group_by', '_having',
-])
+// Query params that are not filter conditions. A filtered delete leaves out the
+// ones that only shape a read, and refuses the ones that narrow which rows match:
+// dropping those would delete more rows than the same query reads.
+const READ_SHAPE_PARAMS = new Set(['ordering', 'populate', 'fields', 'allowed_actions'])
+const SELECTION_PARAMS = new Set(['page', 'page_size', 'search', '_aggregate', '_group_by', '_having'])
 
 interface GraphQueryParams {
     include?: GraphInclude
@@ -257,14 +258,22 @@ export class Database<T = Record<string, unknown>> {
      * Deletes every row that matches the current filters. The data endpoint reads
      * them from a single `?filter=` JSON object, so the flat filter keys and any
      * JSON `filters` tree are moved into it.
+     * @throws Error when no filter is set, or when the query also uses `search()`,
+     * `page()`, `pageSize()`, or aggregation, which a filtered delete can't honor.
      */
     deleteFiltered(): Database<T> {
         const filter: Record<string, unknown> = {}
+        const unsupported: string[] = []
         for (const [key, value] of Object.entries(this.queryParams ?? {})) {
-            if (value !== undefined && !NON_FILTER_PARAMS.has(key)) filter[key] = value
+            if (value === undefined || READ_SHAPE_PARAMS.has(key)) continue
+            if (SELECTION_PARAMS.has(key)) unsupported.push(key)
+            else filter[key] = value
         }
         if (Object.keys(filter).length === 0) {
             throw new Error('deleteFiltered() requires at least one filter. Call .filters(...) first.')
+        }
+        if (unsupported.length > 0) {
+            throw new Error(`deleteFiltered() can't narrow a delete by ${unsupported.join(', ')}; it would delete every row matching the filters. Remove them, or read the rows and delete by ID.`)
         }
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.DELETE, undefined, {
             filter: JSON.stringify(filter)
@@ -272,9 +281,11 @@ export class Database<T = Record<string, unknown>> {
     }
 
     async first(): Promise<T | null> {
-        // A list read only needs one row; a single-record read is left as is.
+        // A list read only needs one row; a single-record read is left as is. With an
+        // explicit page, shrinking the page would move the offset, so read that page.
         const isListRead = !this.urlParams.recordId && (this.operation === undefined || this.operation === HttpMethod.GET)
-        const response = await (isListRead ? this.pageSize(1) : this).execute()
+        const hasPage = this.queryParams?.page !== undefined
+        const response = await (isListRead && !hasPage ? this.pageSize(1) : this).execute()
         const data = response.data
         if (Array.isArray(data)) {
             return data[0] ?? null
