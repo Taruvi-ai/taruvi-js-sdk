@@ -9,16 +9,24 @@ workflow directory.
 
 | Push target | Version in `package.json` | Result |
 | --- | --- | --- |
-| `beta` | Pre-release, such as `1.5.4-beta.1` | Published with npm `beta`, then tagged `v1.5.4-beta.1` |
-| `main` | Stable, such as `1.5.4` | Published with npm `latest`, then tagged `v1.5.4` |
+| `beta` | Pre-release, such as `1.5.4-beta.1` | Published with npm `beta`; GitHub pre-release `v1.5.4-beta.1` |
+| `main` | Stable, such as `1.5.4` | Published with npm `latest`; GitHub release `v1.5.4` |
+| `main` | Pre-release | Fails: npm refuses a pre-release without an explicit tag |
 | Either | Already on npm | Nothing published |
-| `beta` with a stable version, or `main` with a pre-release | — | Workflow fails before publishing |
 | Other branches | — | No publish workflow trigger |
+
+Publishing uses [`JS-DevTools/npm-publish`](https://github.com/JS-DevTools/npm-publish),
+which skips a version that is already on npm, and
+[`softprops/action-gh-release`](https://github.com/softprops/action-gh-release),
+which creates the Git tag and a GitHub release with generated notes after a
+publish.
 
 The workflow never moves dist-tags: trusted publishing covers `npm publish`,
 not `npm dist-tag`. A version therefore reaches `latest` only by being
 published from `main`. Test `1.5.4-beta.1` from `beta`, then set `1.5.4` on the
-branch that merges into `main`.
+branch that merges into `main`. Keep `beta` on pre-release versions: a stable
+version published from `beta` lands on the `beta` tag, and moving it to
+`latest` then takes a maintainer running `npm dist-tag add` with 2FA.
 
 Set the version with `npm version <version> --no-git-tag-version`, which updates
 `package.json` and the root version in `package-lock.json` together.
@@ -34,7 +42,7 @@ stored in GitHub or Infisical. It needs:
   organization `Taruvi-ai`, repository `taruvi-js-sdk`, workflow `publish.yml`,
   and no environment;
 - `repository.url` in `package.json` matching this repository;
-- `id-token: write` in the workflow, Node 22.14 or later, and npm 11.5.1 or later.
+- `id-token: write` in the workflow and npm 11.5.1 or later; Node 24 ships it.
 
 npm doesn't check the trusted publisher when it is saved; a mismatch surfaces as
 a failed `npm publish`. Renaming `publish.yml` requires updating it on npm.
@@ -56,8 +64,10 @@ this folder does not reduce the npm package. Build before checking the archive:
 `prepublishOnly` runs `npm run build` during publish, not during `npm pack`.
 
 The workflow runs `npm ci`, `npm test`, and `npm run build` on Node 24 before
-publishing, and a failure stops the release. A push whose version is already on
-npm, such as a docs-only change, publishes nothing.
+publishing, and a failure stops the release. The publish step runs with
+`--ignore-scripts`, so `prepublishOnly` doesn't run; the build step does that
+work. A push whose version is already on npm, such as a docs-only change,
+publishes nothing.
 
 ## Documentation release check
 
@@ -82,8 +92,8 @@ changes with the SDK release rather than copying a second manual here.
 
 ## Verify publication
 
-The workflow creates the Git tag only after npm accepts the version. After it
-completes, inspect the registry:
+The Git tag and GitHub release are created only after npm accepts the version.
+After the workflow completes, inspect the registry:
 
 ```bash
 npm view @taruvi/sdk dist-tags --json
