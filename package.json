@@ -1,6 +1,6 @@
 {
   "name": "@taruvi/sdk",
-  "version": "1.5.4",
+  "version": "1.5.4-beta.1",
   "description": "Taruvi SDK",
   "main": "./dist/index.js",
   "type": "module",
@@ -36,5 +36,9 @@
     "@types/node": "^24.19.0",
     "typescript": "~5.9.3",
     "vitest": "^4.0.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Taruvi-ai/taruvi-js-sdk.git"
   }
 }

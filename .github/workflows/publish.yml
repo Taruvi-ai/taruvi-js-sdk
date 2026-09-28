@@ -1,73 +1,90 @@
-name: Publish to NPM
+name: Publish to npm
+
+# Publishes with npm trusted publishing (OIDC): no npm token is stored anywhere.
+# Each package's trusted publisher on npmjs.com must name this repository and
+# this workflow file (publish.yml).
+#
+# - beta publishes pre-releases (for example 1.5.4-beta.1) under the "beta" tag.
+# - main publishes stable versions (for example 1.5.4) under the "latest" tag.
+#
+# Trusted publishing covers `npm publish` only, not `npm dist-tag`, so a version
+# is never promoted between tags: main publishes its own stable version.
 
 on:
   push:
     branches: [main, beta]
 
 permissions:
-  contents: write
+  contents: write # push the release tag
+  id-token: write # trusted publishing
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false # never use caching in release builds
 
-      - name: Get secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.7
-        with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          env-slug: taruvi-test
-          project-slug: taruvi-qmc-d
-          domain: "https://environment.eoxvantage.com"
+      - name: Use npm 11.5.1 or later (required for trusted publishing)
+        run: npm install -g npm@^11.5.1
 
-      - run: npm install
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
 
-      - name: Check if version changed
-        id: version_check
+      - name: Decide what to publish
+        id: release
         run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          if git tag | grep -q "^v${CURRENT_VERSION}$"; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
+          if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "$NAME@$VERSION is already on npm; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Tag release
-        if: steps.version_check.outputs.changed == 'true'
+          case "$VERSION" in
+            *-*) PRERELEASE=true ;;
+            *) PRERELEASE=false ;;
+          esac
+          if [ "$GITHUB_REF_NAME" = beta ] && [ "$PRERELEASE" = false ]; then
+            echo "::error::beta publishes pre-releases only, such as $VERSION-beta.1. A stable version published from beta could never become latest without npm dist-tag."
+            exit 1
+          fi
+          if [ "$GITHUB_REF_NAME" = main ] && [ "$PRERELEASE" = true ]; then
+            echo "::error::main publishes stable versions only; $VERSION is a pre-release."
+            exit 1
+          fi
+
+          if [ "$GITHUB_REF_NAME" = beta ]; then TAG=beta; else TAG=latest; fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        if: steps.release.outputs.publish == 'true'
+        run: npm publish --access public --tag "${{ steps.release.outputs.tag }}"
+
+      # Tag only after npm accepted the version, so a failed publish can be re-run.
+      - name: Tag the release
+        if: steps.release.outputs.publish == 'true'
         run: |
+          TAG="v${{ steps.release.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; leaving it."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version_check.outputs.current_version }}"
-          git push origin "v${{ steps.version_check.outputs.current_version }}"
-
-      - name: Publish (latest)
-        if: steps.version_check.outputs.changed == 'true' && github.ref == 'refs/heads/main'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Publish (beta)
-        if: steps.version_check.outputs.changed == 'true' && github.ref == 'refs/heads/beta'
-        run: npm publish --access public --tag beta
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Promote to latest if already published
-        if: steps.version_check.outputs.changed == 'false' && github.ref == 'refs/heads/main'
-        run: |
-          VERSION=${{ steps.version_check.outputs.current_version }}
-          echo "Version $VERSION already published — promoting to latest."
-          npm dist-tag add @taruvi/sdk@$VERSION latest
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          git tag "$TAG"
+          git push origin "$TAG"
