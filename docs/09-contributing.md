@@ -11,7 +11,7 @@ npm run build
 ```
 
 Use a Node.js runtime with JSON import-attribute support for the emitted SDK.
-The publish workflow currently selects Node 20; see the
+The publish workflow uses Node 24; see the
 [public compatibility requirements](https://docs.taruvi.cloud/docs/build/javascript#package-compatibility)
 and [release verification](08-releases-and-branches.md) when choosing a toolchain.
 TypeScript, Node declarations, and Vitest are development dependencies; Axios

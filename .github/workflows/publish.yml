@@ -1,73 +1,50 @@
-name: Publish to NPM
+name: Publish to npm
+
+# Publishes with npm trusted publishing: no npm token is stored anywhere.
+# Each package's trusted publisher on npmjs.com names this repository and
+# this workflow file (publish.yml).
+#
+# - beta: pre-release versions (1.5.4-beta.1), npm "beta" tag.
+# - main: stable versions (1.5.4), npm "latest" tag. npm itself refuses to
+#   publish a pre-release without an explicit tag, so none can reach latest.
+# A version that is already on npm is skipped.
 
 on:
   push:
     branches: [main, beta]
 
 permissions:
-  contents: write
+  contents: write # create the GitHub release and its tag
+  id-token: write # npm trusted publishing
+
+concurrency:
+  group: publish-${{ github.ref }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
         with:
-          fetch-depth: 0
+          node-version: '24' # ships npm 11.5.1+, required for trusted publishing
+          package-manager-cache: false # never use caching in release builds
 
-      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - uses: JS-DevTools/npm-publish@v4
+        id: publish
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          access: public
+          tag: ${{ github.ref_name == 'beta' && 'beta' || '' }}
 
-      - name: Get secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.7
+      - uses: softprops/action-gh-release@v3
+        if: steps.publish.outputs.type
         with:
-          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
-          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
-          env-slug: taruvi-test
-          project-slug: taruvi-qmc-d
-          domain: "https://environment.eoxvantage.com"
-
-      - run: npm install
-
-      - name: Check if version changed
-        id: version_check
-        run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-          if git tag | grep -q "^v${CURRENT_VERSION}$"; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Tag release
-        if: steps.version_check.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ steps.version_check.outputs.current_version }}"
-          git push origin "v${{ steps.version_check.outputs.current_version }}"
-
-      - name: Publish (latest)
-        if: steps.version_check.outputs.changed == 'true' && github.ref == 'refs/heads/main'
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Publish (beta)
-        if: steps.version_check.outputs.changed == 'true' && github.ref == 'refs/heads/beta'
-        run: npm publish --access public --tag beta
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-
-      - name: Promote to latest if already published
-        if: steps.version_check.outputs.changed == 'false' && github.ref == 'refs/heads/main'
-        run: |
-          VERSION=${{ steps.version_check.outputs.current_version }}
-          echo "Version $VERSION already published — promoting to latest."
-          npm dist-tag add @taruvi/sdk@$VERSION latest
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+          tag_name: v${{ steps.publish.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.ref_name == 'beta' }}
+          generate_release_notes: true

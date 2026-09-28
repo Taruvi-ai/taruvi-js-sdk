@@ -7,16 +7,45 @@ workflow directory.
 
 ## Branch behavior
 
-| Push target | New version, with no existing `v{version}` Git tag | Existing Git tag |
+| Push target | Version in `package.json` | Result |
 | --- | --- | --- |
-| `main` | Tag and publish with npm `latest` | Attempt to promote that version to `latest` |
-| `beta` | Tag and publish with npm `beta` | Skip publishing |
-| Other branches | No publish workflow trigger | No publish workflow trigger |
+| `beta` | Pre-release, such as `1.5.4-beta.1` | Published with npm `beta`; GitHub pre-release `v1.5.4-beta.1` |
+| `main` | Stable, such as `1.5.4` | Published with npm `latest`; GitHub release `v1.5.4` |
+| `main` | Pre-release | Fails: npm refuses a pre-release without an explicit tag |
+| Either | Already on npm | Nothing published |
+| Other branches | — | No publish workflow trigger |
 
-An npm dist-tag and a prerelease version suffix are separate: `--tag beta` does
-not add a `-beta` suffix to the version. Choose the intended version explicitly
-and update `package.json` and the root version in `package-lock.json` together.
+Publishing uses [`JS-DevTools/npm-publish`](https://github.com/JS-DevTools/npm-publish),
+which skips a version that is already on npm, and
+[`softprops/action-gh-release`](https://github.com/softprops/action-gh-release),
+which creates the Git tag and a GitHub release with generated notes after a
+publish.
+
+The workflow never moves dist-tags: trusted publishing covers `npm publish`,
+not `npm dist-tag`. A version therefore reaches `latest` only by being
+published from `main`. Test `1.5.4-beta.1` from `beta`, then set `1.5.4` on the
+branch that merges into `main`. Keep `beta` on pre-release versions: a stable
+version published from `beta` lands on the `beta` tag, and moving it to
+`latest` then takes a maintainer running `npm dist-tag add` with 2FA.
+
+Set the version with `npm version <version> --no-git-tag-version`, which updates
+`package.json` and the root version in `package-lock.json` together.
 `src/version.ts` reads the package version; it has no separate version literal.
+
+## Trusted publishing
+
+The workflow publishes with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers):
+GitHub issues a short-lived identity token for each run, and no npm token is
+stored in GitHub or Infisical. It needs:
+
+- a trusted publisher on the package's npmjs.com settings page: GitHub Actions,
+  organization `Taruvi-ai`, repository `taruvi-js-sdk`, workflow `publish.yml`,
+  and no environment;
+- `repository.url` in `package.json` matching this repository;
+- `id-token: write` in the workflow and npm 11.5.1 or later; Node 24 ships it.
+
+npm doesn't check the trusted publisher when it is saved; a mismatch surfaces as
+a failed `npm publish`. Renaming `publish.yml` requires updating it on npm.
 
 ## Before releasing
 
@@ -34,9 +63,11 @@ package metadata. `docs/` is excluded by the `files` allowlist, so shortening
 this folder does not reduce the npm package. Build before checking the archive:
 `prepublishOnly` runs `npm run build` during publish, not during `npm pack`.
 
-The workflow currently uses Node 20 and `npm install`. It does **not** run
-`npm test`; maintainers must verify tests before a release reaches `main` or
-`beta`. A docs-only push to `main` can still trigger dist-tag promotion.
+The workflow runs `npm ci`, `npm test`, and `npm run build` on Node 24 before
+publishing, and a failure stops the release. The publish step runs with
+`--ignore-scripts`, so `prepublishOnly` doesn't run; the build step does that
+work. A push whose version is already on npm, such as a docs-only change,
+publishes nothing.
 
 ## Documentation release check
 
@@ -61,8 +92,8 @@ changes with the SDK release rather than copying a second manual here.
 
 ## Verify publication
 
-The workflow creates the Git tag **before** publishing. A tag alone is not
-proof of an npm release. After the workflow completes, inspect the registry:
+The Git tag and GitHub release are created only after npm accepts the version.
+After the workflow completes, inspect the registry:
 
 ```bash
 npm view @taruvi/sdk dist-tags --json
@@ -73,8 +104,7 @@ Replace `VERSION` with the release version. Confirm that the intended dist-tag
 points to it, then install that exact package in a consumer and check imports
 and the relevant SDK/provider flow.
 
-If publication fails after tagging, compare the workflow result, Git tag, and
-registry before retrying. The existing-tag branch may skip publishing or try
-to promote a version that is absent from npm. Do not treat that as success.
-Published versions cannot be overwritten; subsequent package or npm README
-changes require a new package version.
+If publication fails, fix the cause and re-run the workflow: it checks npm, not
+Git tags, so a failed run doesn't block the retry. Published versions cannot be
+overwritten; subsequent package or npm README changes require a new package
+version.
