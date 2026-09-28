@@ -1,6 +1,6 @@
 export const AppRoutes = {
     baseUrl: (appSlug: string) => `api/apps/${appSlug}`,
-    roles: (): string => `/roles`,
+    roles: (): string => `/roles/`,
     settings: (): string => "/settings/"
 }
 

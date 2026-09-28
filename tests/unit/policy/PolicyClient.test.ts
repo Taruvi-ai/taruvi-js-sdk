@@ -32,7 +32,7 @@ describe('Policy', () => {
             ])
 
             expect(mockHttpClient.post).toHaveBeenCalledWith(
-                'api/apps/test-app/check/resources',
+                'api/apps/test-app/check/resources/',
                 {
                     resources: [{
                         resource: {
@@ -73,7 +73,7 @@ describe('Policy', () => {
             ])
 
             expect(mockHttpClient.post).toHaveBeenCalledWith(
-                'api/apps/test-app/check/resources',
+                'api/apps/test-app/check/resources/',
                 {
                     resources: [
                         {

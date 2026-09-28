@@ -286,6 +286,39 @@ describe('Database', () => {
             const result = await new Database(mockClient).from('accounts').get('1').first()
             expect(result).toEqual({ id: '1' })
         })
+
+        it('requests one row for a list read', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '1' }] })
+            await new Database(mockClient).from('accounts').filters('status', 'eq', 'open').first()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).toContain('page_size=1')
+            expect(url).toContain('status=open')
+        })
+
+        it('keeps the requested page and page size, returning that page\'s first row', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '21' }, { id: '22' }] })
+            const result = await new Database(mockClient).from('accounts').page(2).pageSize(20).first()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).toContain('page=2')
+            expect(url).toContain('page_size=20')
+            expect(result).toEqual({ id: '21' })
+        })
+
+        it('does not add page_size to a single-record read', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: { id: '1' } })
+            await new Database(mockClient).from('accounts').get('1').first()
+            const url = mockHttpClient.get.mock.calls[0][0] as string
+            expect(url).not.toContain('page_size')
+        })
+    })
+
+    describe('count() request', () => {
+        it('asks for one row so the platform returns the total without every record', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: [{ id: '1' }], total: 42 })
+            const total = await new Database(mockClient).from('accounts').filters('status', 'eq', 'open').count()
+            expect(total).toBe(42)
+            expect(mockHttpClient.get.mock.calls[0][0]).toContain('page_size=1')
+        })
     })
 
     describe('count()', () => {
@@ -571,12 +604,40 @@ describe('Database', () => {
     })
 
     describe('deleteFiltered()', () => {
-        it('calls httpClient.delete with filter params in query string', async () => {
+        it('sends the filters as one ?filter= JSON object', async () => {
             mockHttpClient.delete.mockResolvedValue({ status: 'success' })
-            await new Database(mockClient).from('accounts').filters('status', 'eq', 'inactive').deleteFiltered().execute()
-            const url = mockHttpClient.delete.mock.calls[0][0]
-            expect(url).toContain('status=inactive')
+            await new Database(mockClient).from('accounts').filters('status', 'eq', 'inactive').filters('age', 'lt', 18).deleteFiltered().execute()
+            const url: string = mockHttpClient.delete.mock.calls[0][0]
+            const params = new URLSearchParams(url.split('?')[1])
+            expect(JSON.parse(params.get('filter') as string)).toEqual({ status: 'inactive', age__lt: 18 })
+            expect(url).not.toContain('status=inactive')
             expect(url).not.toContain('/undefined/')
+        })
+
+        it('moves a JSON filter tree into the filter object and drops read-only params', async () => {
+            mockHttpClient.delete.mockResolvedValue({ status: 'success' })
+            const tree = [{ operator: 'or' as const, value: [{ field: 'status', operator: 'eq', value: 'done' }] }]
+            await new Database(mockClient).from('tasks').filters(tree).sort('title').populate(['owner']).deleteFiltered().execute()
+            const url: string = mockHttpClient.delete.mock.calls[0][0]
+            const filter = JSON.parse(new URLSearchParams(url.split('?')[1]).get('filter') as string)
+            expect(filter).toEqual({ filters: JSON.stringify(tree) })
+        })
+
+        it('refuses search, which it cannot honor, instead of deleting the wider set', () => {
+            expect(() => new Database(mockClient).from('tasks').search('needle').filters('status', 'eq', 'archived').deleteFiltered())
+                .toThrow("can't narrow a delete by search")
+            expect(mockHttpClient.delete).not.toHaveBeenCalled()
+        })
+
+        it('refuses pagination and aggregation', () => {
+            expect(() => new Database(mockClient).from('tasks').filters('status', 'eq', 'archived').page(2).pageSize(10).deleteFiltered())
+                .toThrow("can't narrow a delete by page, page_size")
+            expect(() => new Database(mockClient).from('tasks').filters('status', 'eq', 'archived').aggregate('count(*)').deleteFiltered())
+                .toThrow("can't narrow a delete by _aggregate")
+        })
+
+        it('throws before sending a request when no filter is set', () => {
+            expect(() => new Database(mockClient).from('accounts').page(1).deleteFiltered()).toThrow('requires at least one filter')
         })
 
         it('hits collection endpoint without recordId', async () => {
@@ -618,12 +679,11 @@ describe('Database', () => {
             )
         })
 
-        it('delete() calls DELETE with edge_ids body', async () => {
+        it('delete() with edge IDs sends them as ?ids=', async () => {
             mockHttpClient.delete.mockResolvedValue({ deleted: 2 })
             await new Database(mockClient).from('employees').edges().delete([9, 10]).execute()
             expect(mockHttpClient.delete).toHaveBeenCalledWith(
-                'api/apps/test-app/datatables/employees_edges/data/',
-                { edge_ids: [9, 10] }
+                'api/apps/test-app/datatables/employees_edges/data/?ids=9%2C10'
             )
         })
 

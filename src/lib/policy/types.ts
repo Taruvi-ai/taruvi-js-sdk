@@ -31,6 +31,10 @@ export interface PolicyCheckBatchResult {
 
 export type GetAllowedActionsOptions = {
     actions?: string[]
+    /**
+     * @deprecated The platform rejects an explicit principal with a 400.
+     * Checks always run as the signed-in user; leave this unset.
+     */
     principal?: Principal
     auxData?: Record<string, unknown>
 }

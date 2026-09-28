@@ -2,9 +2,9 @@
 export { Client } from "./client.js"
 
 // Export error classes
-export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, RateLimitError } from "./lib-internal/errors/index.js"
+export { TaruviError, ValidationError, AuthError, ForbiddenError, NotFoundError, ConflictError, TimeoutError, NetworkError, RateLimitError, BillingError } from "./lib-internal/errors/index.js"
 export { ErrorCode } from "./lib-internal/errors/index.js"
-export type { ErrorResponseBody } from "./lib-internal/errors/index.js"
+export type { ErrorResponseBody, BillingErrorCode } from "./lib-internal/errors/index.js"
 
 // Export public client classes
 export { Auth } from "./lib/auth/AuthClient.js"
@@ -19,11 +19,11 @@ export { App } from "./lib/app/AppClient.js"
 export { Analytics } from "./lib/analytics/AnalyticsClient.js"
 
 // Export core types
-export type { TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
+export type { AuthMode, TaruviConfig, TaruviResponse, PaginationInfo, StorageFilters, DatabaseFilters } from "./types.js"
 export type { AuthTokens } from "./lib-internal/token/TokenClient.js"
 
 // User types
-export type { UserCreateRequest, UserData, UserUpdateRequest, UserListFilters, UserApp, UserResponse, UserListResponse, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse, UserGroup, UserPermission, UserRole, UserPreferences, UserPreferencesUpdate, UserPreferencesResponse } from "./lib/users/types.js"
+export type { UserCreateRequest, UserData, UserUpdateRequest, UserListFilters, UserApp, UserResponse, UserListResponse, UserAppsResponse, AssignRolesRequest, RevokeRolesRequest, RolesResponse, RoleChangeFailure, UserGroup, UserPermission, UserRole, UserPreferences, UserPreferencesUpdate, UserPreferencesResponse } from "./lib/users/types.js"
 
 // Policy types
 export type { Principal, Resource, Resources, PolicyCheckResult, PolicyCheckBatchResult, ResourceCheckResponse, GetAllowedActionsOptions } from "./lib/policy/types.js"

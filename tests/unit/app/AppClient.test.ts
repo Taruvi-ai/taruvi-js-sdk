@@ -34,7 +34,7 @@ describe('App', () => {
             const app = new App(mockClient)
             const result = await app.roles().execute()
 
-            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/roles')
+            expect(mockHttpClient.get).toHaveBeenCalledWith('api/apps/test-app/roles/')
             expect(result).toEqual(rolesData)
         })
     })

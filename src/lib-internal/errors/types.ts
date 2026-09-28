@@ -12,7 +12,11 @@ export enum ErrorCode {
     INTERNAL_ERROR = 'INTERNAL_ERROR',
     RATE_LIMITED = 'RATE_LIMITED',
     GATEWAY_TIMEOUT = 'GATEWAY_TIMEOUT',
-    NETWORK_ERROR = 'NETWORK_ERROR'
+    NETWORK_ERROR = 'NETWORK_ERROR',
+    // Billing gate refusals: the organization's billing blocks the request.
+    ACCOUNT_SUSPENDED = 'account_suspended',
+    PRODUCT_SUSPENDED = 'product_suspended',
+    GATE_UNAVAILABLE = 'gate_unavailable'
 }
 
 /**
@@ -20,9 +24,11 @@ export enum ErrorCode {
  * Matches AppException.to_dict() output.
  */
 export interface ErrorResponseBody {
-    status: 'error'
+    status?: 'error'
     code: string
-    message: string
+    message?: string
+    /** The gated product area, on billing refusals. */
+    module?: string
     detail?: string
     errors?: Record<string, unknown>
     data?: unknown
