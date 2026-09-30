@@ -164,12 +164,8 @@ These files are **not** the user guide; use `docs/` instead:
 
 | File | Note |
 |------|------|
-| [STORAGE_USAGE_EXAMPLES.md](../STORAGE_USAGE_EXAMPLES.md) | Deprecated — outdated API |
-| [STRUCTURE_REVIEW.md](../STRUCTURE_REVIEW.md) | Internal planning |
-| [taruvi-sdk-structure.plan.md](../taruvi-sdk-structure.plan.md) | Internal planning |
 | [MODULE_NAMING_CHANGES.md](../MODULE_NAMING_CHANGES.md) | Changelog |
 | [PARAMETER_NAMING_CHANGES.md](../PARAMETER_NAMING_CHANGES.md) | Changelog (`baseUrl` → `apiUrl`) |
-| [SDK_DESIGN_CONTEXT.md](../SDK_DESIGN_CONTEXT.md) | Backend contract; auth model may differ from SDK |
 
 ---
 

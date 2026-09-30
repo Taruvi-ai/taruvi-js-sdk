@@ -1,52 +1,72 @@
-# Taruvi SDK
+# Taruvi JavaScript SDK
 
-TypeScript SDK for the Taruvi platform. It gives developers a **consistent, typed way to query the Taruvi backend** — shared configuration, session authentication, fluent query builders, and structured errors across data, storage, auth, users, functions, analytics, policy, secrets, and app services.
+Official JavaScript and TypeScript SDK for TaruviBase.
 
-**Package:** `@taruvi/sdk` · **Version:** 1.5.0-beta.1 · **License:** MIT
+[![npm](https://img.shields.io/npm/v/@taruvi/sdk?label=npm)](https://www.npmjs.com/package/@taruvi/sdk) [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Branches:** `main` is for **stable** releases; `beta` is for **experimental** releases. Bumping `version` in `package.json` and pushing to either branch triggers CI/CD (`npm test`, then publish to npm with the matching tag). See [Releases and branches](docs/08-releases-and-branches.md).
-
-## Installation
+## Install
 
 ```bash
-# Stable (from main)
-npm install @taruvi/sdk
-
-# Experimental (from beta)
-npm install @taruvi/sdk@beta
+npm install @taruvi/sdk          # stable
+npm install @taruvi/sdk@beta     # experimental
 ```
 
-**Peer dependencies:** `axios` (>=1), `typescript` (>=5.7), optional `@types/node` for server use.
+Peer dependencies: `axios` (>=1 <2), `typescript` (>=5.7 <6), and optionally `@types/node` (>=18 <25) for server use.
 
-## Quick start
+## Quickstart
+
+Create one `Client` when your app starts, then pass it to the services you use:
 
 ```typescript
-import { Client, Database } from '@taruvi/sdk'
+import { Auth, Client, Database } from '@taruvi/sdk'
 
 const client = new Client({
-  apiKey: 'your-site-api-key',
-  appSlug: 'your-app-slug',
-  apiUrl: 'https://taruvi-site.taruvi.cloud',
+  apiUrl: import.meta.env.VITE_TARUVI_SITE_URL,
+  appSlug: import.meta.env.VITE_TARUVI_APP_SLUG,
+  apiKey: 'session-authenticated-client',
 })
 
-const db = new Database(client)
+// Call from a sign-in button; TaruviBase redirects back with a session
+export const signIn = () => new Auth(client).login()
 
-const response = await db
-  .from('accounts')
-  .filters('status', 'eq', 'active')
-  .sort('created_at', 'desc')
+// After sign-in
+const tasks = await new Database(client)
+  .from('tasks')
+  .filters('status', 'eq', 'open')
+  .sort('title', 'asc')
   .page(1)
   .pageSize(20)
   .execute()
 ```
 
-## Documentation
+The SDK authenticates with the signed-in user's session. `apiKey` is required but not sent with requests, so use a placeholder and never put a real API key in browser code. For server use and API-key calls, see the [JavaScript SDK docs](https://docs.taruvibase.com/docs/build/javascript).
 
-Full guides live in **[docs/](docs/README.md)**:
+## Services
+
+| Client | Use it for |
+|--------|------------|
+| `Auth` | Browser sign-in redirects, session validation, the current user |
+| `Database` | Records, filters, sorting, pagination, aggregations, graph edges |
+| `Storage` | Objects in app storage buckets |
+| `Functions` | Function invocation |
+| `User` | Users, roles, app membership, preferences |
+| `Policy` | Permission checks and allowed actions |
+| `Secrets` | Reading one or more secrets |
+| `Settings` | Site metadata and user attributes |
+| `App` | App roles and settings |
+| `Analytics` | Saved analytics-query execution |
+
+Typed errors (`TaruviError`, `ValidationError`, `AuthError`, `ForbiddenError`, `NotFoundError` and others) are exported from the package.
+
+## Learn more
+
+[SDK docs](https://docs.taruvibase.com/docs/build/javascript) · [Documentation](https://docs.taruvibase.com/) · [Website](https://taruvibase.com/)
+
+Guides in this repository:
 
 | Guide | Topic |
-|-------|--------|
-| [Introduction](docs/01-introduction.md) | Purpose, setup, DI, backend-handled login flow |
+|-------|-------|
+| [Introduction](docs/01-introduction.md) | Purpose, setup, backend-handled login flow |
 | [Builder pattern](docs/02-builder-pattern.md) | Immutable queries and execution |
 | [Architecture](docs/03-architecture.md) | `lib` vs `lib-internal`, request flow |
 | [Clients](docs/04-clients.md) | What each service does |
@@ -55,38 +75,15 @@ Full guides live in **[docs/](docs/README.md)**:
 | [Advanced & troubleshooting](docs/07-advanced-topics.md) | Typing, filters, CORS, packaging |
 | [Releases & branches](docs/08-releases-and-branches.md) | Stable vs beta, CI/CD publish workflow |
 
-## Services at a glance
+## Contributing
 
-| Client | Use for |
-|--------|---------|
-| `Database` | Table CRUD, filters, pagination, graph/edges |
-| `Storage` | Bucket files: list, upload, download, delete |
-| `Auth` | Browser login/signup/logout, session token |
-| `User` | User admin, roles, preferences |
-| `Functions` | Invoke serverless functions |
-| `Analytics` | Run predefined analytics queries |
-| `Settings` | Site metadata, user attribute schema |
-| `Secrets` | Read secret values |
-| `Policy` | Permission checks |
-| `App` | App roles and settings |
-
-## What's included
-
-- **Immutable builder pattern** for `Database`, `Storage`, `App`, and `Secrets.get()` — each chain step returns a new instance so parallel queries never overwrite each other's URLs or filters.
-- **Session authentication** via `X-Session-Token`; automatic token extraction from URL hash after OAuth redirect in the browser.
-- **Typed errors** — `AuthError`, `NotFoundError`, `ValidationError`, and others exported from the package.
-
-## Development
+`main` publishes stable releases and `beta` publishes experimental ones. See [Contributing](docs/09-contributing.md) and [Releases & branches](docs/08-releases-and-branches.md).
 
 ```bash
 npm run build    # TypeScript compile
 npm test         # Vitest unit tests
 ```
 
-## Additional resources
+## License
 
-- [SDK design context](SDK_DESIGN_CONTEXT.md) — backend API contract notes (SDK ↔ API mapping)
-
-## Author
-
-Curran C Doddabele · EOX Vantage
+MIT, see [LICENSE](LICENSE).
