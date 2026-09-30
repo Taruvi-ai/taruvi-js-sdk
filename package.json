@@ -1,7 +1,7 @@
 {
   "name": "@taruvi/sdk",
   "version": "1.5.4-beta.1",
-  "description": "Taruvi SDK",
+  "description": "Official JavaScript and TypeScript SDK for TaruviBase.",
   "main": "./dist/index.js",
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -25,10 +25,11 @@
   "keywords": [
     "taruvi",
     "sdk",
-    "EOX Vantage"
+    "taruvibase"
   ],
-  "author": "Curran C Doddabele",
+  "author": "Taruvi",
   "license": "MIT",
+  "homepage": "https://docs.taruvibase.com/docs/build/javascript",
   "peerDependencies": {
     "axios": ">=1 <2"
   },
