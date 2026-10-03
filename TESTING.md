@@ -59,3 +59,10 @@ fragment. The other cases verify the existing flat-key replacement contract,
 immutable builder reuse, and JSON tree preservation of repeated conditions and
 comma-containing list values. Run `npm test -- tests/unit/database/DatabaseTransport.test.ts`.
 These adapter checks do not prove a deployed backend accepts every text primary key.
+
+## Automated gate
+
+The reviewed CI workflow runs locked dependency installation and the module
+gate on pull requests to `main` or `beta`, using Node 24 to match the release
+workflow. Publication retains its existing test/build steps. This local review
+did not trigger a hosted workflow or publish a package.
