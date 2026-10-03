@@ -32,7 +32,7 @@ export type { Principal, Resource, Resources, PolicyCheckResult, PolicyCheckBatc
 export type { RoleData, AppSettingsData, RoleResponse, RolesListResponse, AppSettingsResponse } from "./lib/app/types.js"
 
 // Function types
-export type { FunctionRequest, FunctionResponse, FunctionInvocation } from "./lib/functions/types.js"
+export type { FunctionRequest, FunctionResponse, FunctionInvocation, FunctionTaskResult } from "./lib/functions/types.js"
 
 // Database types
 export type { DatabaseRequest, DatabaseResponse, DatabaseSingleResponse, FilterOperator, GraphFormat, EdgeRequest, EdgeResponse, EdgeDeleteRequest, PgRangeValue, BackendFilterLeafNode, BackendFilterLogicalNode, BackendFilterNode, BackendFilterTreeRoot } from "./lib/database/types.js"

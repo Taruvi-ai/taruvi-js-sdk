@@ -10,6 +10,7 @@
     "build": "tsc",
     "prepublishOnly": "npm run build",
     "test": "vitest run",
+    "test:types": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --skipLibCheck --esModuleInterop tests/typing/functions-contract.ts",
     "test:watch": "vitest"
   },
   "exports": {
