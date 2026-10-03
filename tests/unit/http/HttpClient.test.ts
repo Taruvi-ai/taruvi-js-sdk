@@ -58,8 +58,50 @@ describe('HttpClient transport boundary', () => {
             { code: 'UNAUTHORIZED', message: 'expired' },
         ) as never)
 
-        await expect(client.httpClient.get('api/protected/')).rejects.toBeInstanceOf(AuthError)
+        await expect(client.httpClient.get('api/protected/')).rejects.toMatchObject({ constructor: AuthError, staleSession: false })
         expect(clearTokens).toHaveBeenCalledOnce()
+    })
+
+    it.each([401, 410, 419])('keeps a newer session when an old request receives %i', async (status) => {
+        const client = new Client({ apiUrl: 'https://api.example.com', appSlug: 'app', token: 'old-session' })
+        let finishRequest!: () => void
+        let signalStarted!: () => void
+        const started = new Promise<void>(resolve => { signalStarted = resolve })
+        axiosInstance(client).defaults.adapter = (config: InternalAxiosRequestConfig) => new Promise((_resolve, reject) => {
+            finishRequest = () => {
+                const response = { data: { code: 'UNAUTHORIZED' }, status, statusText: 'expired', headers: {}, config }
+                reject(new AxiosError('expired', 'ERR_BAD_RESPONSE', config, undefined, response))
+            }
+            signalStarted()
+        })
+        const pending = client.httpClient.get('api/protected/').catch(error => error)
+        await started
+        client.tokenClient.setAccessToken('new-session')
+        finishRequest()
+
+        const error = await pending
+        expect(error).toBeInstanceOf(AuthError)
+        expect(error.staleSession).toBe(true)
+        expect(JSON.stringify(error)).not.toContain('old-session')
+        expect(JSON.stringify(error)).not.toContain('new-session')
+        expect(client.tokenClient.getSessionToken()).toBe('new-session')
+    })
+
+    it('does not clear a session created after an unauthenticated request', async () => {
+        const client = new Client({ apiUrl: 'https://api.example.com', appSlug: 'app' })
+        axiosInstance(client).defaults.adapter = (config: InternalAxiosRequestConfig) => {
+            client.tokenClient.setAccessToken('new-session')
+            return rejectedResponse(config, 401, { code: 'UNAUTHORIZED' })
+        }
+        await expect(client.httpClient.get('api/protected/')).rejects.toMatchObject({ staleSession: true })
+        expect(client.tokenClient.getSessionToken()).toBe('new-session')
+    })
+
+    it('does not clear an unrelated stored session when an API key is rejected', async () => {
+        const client = new Client({ apiUrl: 'https://api.example.com', appSlug: 'app', authMode: 'apiKey', apiKey: 'rejected-key', token: 'session' })
+        axiosInstance(client).defaults.adapter = (config: InternalAxiosRequestConfig) => rejectedResponse(config, 401, { code: 'UNAUTHORIZED' })
+        await expect(client.httpClient.get('api/protected/')).rejects.toMatchObject({ staleSession: false })
+        expect(client.tokenClient.getSessionToken()).toBe('session')
     })
 
     it('keeps the session for a permission failure and maps retry-after', async () => {

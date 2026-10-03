@@ -30,6 +30,18 @@ into the default `npm test` command.
 | Functions, policy, secrets, settings, app, users, analytics | matching directories | endpoint payloads and response normalization |
 | Edge behavior | `tests/unit/edge-cases` | unusual values and regression cases |
 
+Session invalidation tests run through the real Axios interceptors with a
+controlled adapter. They cover current-token rejection, an older request
+failing after sign-in rotates the session, an unauthenticated request finishing
+after sign-in, and an API-key failure with an unrelated stored session.
+`AuthError.staleSession` marks only the older-session case without exposing
+credentials. Consumers can avoid redirecting a newly signed-in user while
+still treating ordinary authentication failures as failures.
+
+The October 3, 2026 gate passed **252 tests**, followed by `npm run build`
+and `git diff --check`. Five new lifecycle cases failed before repair. This
+is local adapter evidence, not a hosted login or published-package check.
+
 Prefer one parameterized test for a family of status codes or operators, and
 assert the observable request/response contract rather than implementation
 details such as private helper calls.

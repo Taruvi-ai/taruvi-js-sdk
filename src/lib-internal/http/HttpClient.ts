@@ -1,7 +1,7 @@
 import type { TaruviConfig } from "../../types.js";
 import type { TokenClient } from "../token/TokenClient.js";
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
-import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
+import { AuthError, createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
 import { clientIdentifier } from "../../version.js";
 
@@ -73,7 +73,12 @@ export class HttpClient {
             (response) => response,
             (error: AxiosError) => {
                 const status = error.response?.status
-                if (status !== undefined && SESSION_INVALID_STATUSES.has(status)) {
+                const failedSession = error.config?.headers?.['X-Session-Token']
+                if (
+                    status !== undefined && SESSION_INVALID_STATUSES.has(status) &&
+                    typeof failedSession === 'string' && failedSession &&
+                    failedSession === this.tokenClient.getSessionToken()
+                ) {
                     this.tokenClient.clearTokens()
                 }
                 return Promise.reject(error)
@@ -89,7 +94,15 @@ export class HttpClient {
         if (error instanceof AxiosError) {
             if (error.response) {
                 const body = error.response.data as ErrorResponseBody | undefined
-                throw createErrorFromResponse(error.response.status, body, parseRetryAfter(error.response.headers?.["retry-after"]))
+                const mapped = createErrorFromResponse(error.response.status, body, parseRetryAfter(error.response.headers?.["retry-after"]))
+                const currentSession = this.tokenClient.getSessionToken()
+                if (mapped instanceof AuthError && !this.apiKey && currentSession &&
+                    error.config?.headers?.['X-Session-Token'] !== currentSession) {
+                    // Tell consumers this failure belongs to an older session,
+                    // without putting either credential on the public error.
+                    throw new AuthError(mapped.message, mapped.detail, mapped.statusCode, true)
+                }
+                throw mapped
             }
             throw new NetworkError(error.message)
         }
