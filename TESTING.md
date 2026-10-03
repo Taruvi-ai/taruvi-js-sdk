@@ -39,10 +39,10 @@ credentials. Consumers can avoid redirecting a newly signed-in user while
 still treating ordinary authentication failures as failures.
 
 Browser session configuration is also a transport contract. Constructing
-`Client` with `token` must store that session before the first request, so an
-embedded Console client can use the documented configuration instead of
-mutating the token client after construction. The browser-auth test exercises
-the real request interceptor and asserts `X-Session-Token` on that first call.
+`Client` with `token` keeps that session in memory for that client, without
+replacing the signed-in browser session shared by ordinary clients. The
+browser-auth test exercises the real request interceptor, a second client, and
+clear behavior while asserting `X-Session-Token` on the configured first call.
 
 The October 3, 2026 gate passed **253 tests**, followed by `npm run build`
 and `git diff --check`. Five new lifecycle cases failed before repair. This

@@ -13,24 +13,23 @@ export class TokenClient {
     private runTimeEnvironment: string
     private browserRunTime: boolean
     private serverToken: string | null = null
+    private configuredToken: string | null = null
+    private readonly hasConfiguredToken: boolean
 
     constructor(token?: string) {
         this.runTimeEnvironment = getRuntimeEnvironment()
         this.browserRunTime = this.runTimeEnvironment == "Browser"
-
-        if (token) {
-            if (this.browserRunTime) {
-                this.setAccessToken(token)
-            } else {
-                this.serverToken = token
-            }
-        }
+        this.hasConfiguredToken = token != null
+        this.configuredToken = token ?? null
     }
 
     /**
      * Get session token
      */
     getSessionToken(): string | null {
+        if (this.hasConfiguredToken) {
+            return this.configuredToken
+        }
         if (this.browserRunTime) {
             if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
                 return null
@@ -51,6 +50,10 @@ export class TokenClient {
      * Store session token
      */
     setTokens(tokens: AuthTokens): void {
+        if (this.hasConfiguredToken) {
+            this.configuredToken = tokens.sessionToken
+            return
+        }
         if (!this.browserRunTime) {
             console.warn('Token storage is only available in browser environment')
             return
@@ -71,6 +74,10 @@ export class TokenClient {
      * Set session token directly
      */
     setAccessToken(token: string): void {
+        if (this.hasConfiguredToken) {
+            this.configuredToken = token
+            return
+        }
         if (this.browserRunTime) {
             if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
             try {
@@ -94,6 +101,10 @@ export class TokenClient {
      * Clear session token
      */
     clearTokens(): void {
+        if (this.hasConfiguredToken) {
+            this.configuredToken = null
+            return
+        }
         if (!this.browserRunTime) {
             this.serverToken = null
             return

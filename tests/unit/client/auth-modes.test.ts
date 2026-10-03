@@ -56,6 +56,7 @@ describe('apiKey mode in a browser', () => {
 
     it('applies a configured session token to browser requests', async () => {
         const storage = new Map<string, string>()
+        storage.set('session_token', 'signed-in-user')
         vi.stubGlobal('localStorage', {
             getItem: (key: string) => storage.get(key) ?? null,
             setItem: (key: string, value: string) => void storage.set(key, value),
@@ -70,6 +71,15 @@ describe('apiKey mode in a browser', () => {
         })
         expect(client.tokenClient.getSessionToken()).toBe('browser-session')
         expect((await sentHeaders(client))['X-Session-Token']).toBe('browser-session')
+        expect(storage.get('session_token')).toBe('signed-in-user')
+
+        const signedInClient = new BrowserClient({
+            apiUrl: 'https://api.test', appSlug: 'app', apiKey: 'session-client',
+        })
+        expect(signedInClient.tokenClient.getSessionToken()).toBe('signed-in-user')
+        client.tokenClient.clearTokens()
+        expect(client.tokenClient.getSessionToken()).toBeNull()
+        expect(signedInClient.tokenClient.getSessionToken()).toBe('signed-in-user')
     })
 })
 
