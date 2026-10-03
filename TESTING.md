@@ -38,7 +38,13 @@ after sign-in, and an API-key failure with an unrelated stored session.
 credentials. Consumers can avoid redirecting a newly signed-in user while
 still treating ordinary authentication failures as failures.
 
-The October 3, 2026 gate passed **252 tests**, followed by `npm run build`
+Browser session configuration is also a transport contract. Constructing
+`Client` with `token` must store that session before the first request, so an
+embedded Console client can use the documented configuration instead of
+mutating the token client after construction. The browser-auth test exercises
+the real request interceptor and asserts `X-Session-Token` on that first call.
+
+The October 3, 2026 gate passed **253 tests**, followed by `npm run build`
 and `git diff --check`. Five new lifecycle cases failed before repair. This
 is local adapter evidence, not a hosted login or published-package check.
 

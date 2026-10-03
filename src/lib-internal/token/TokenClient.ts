@@ -18,8 +18,12 @@ export class TokenClient {
         this.runTimeEnvironment = getRuntimeEnvironment()
         this.browserRunTime = this.runTimeEnvironment == "Browser"
 
-        if (!this.browserRunTime && token) {
-            this.serverToken = token
+        if (token) {
+            if (this.browserRunTime) {
+                this.setAccessToken(token)
+            } else {
+                this.serverToken = token
+            }
         }
     }
 
