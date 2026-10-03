@@ -48,6 +48,11 @@ Keep API keys on the server; see [server authentication](https://docs.taruvi.clo
 
 Use the SDK version covered by each guide when following its examples.
 
+Function execute responses from the matching platform include an optional
+`queued` flag: asynchronous acknowledgements are true, synchronous results are
+false. An empty `data` array alone does not identify the mode. Older servers
+omit the flag; choose `async` explicitly when those servers are in use.
+
 ## Contributing
 
 [Maintainer documentation](https://github.com/Taruvi-ai/taruvi-js-sdk/blob/main/docs/README.md)

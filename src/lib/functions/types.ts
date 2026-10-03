@@ -24,4 +24,6 @@ export interface FunctionResponse<T = unknown> {
     message: string
     data: T | null
     invocation: FunctionInvocation
+    /** True for an asynchronous acknowledgement, even if the task already finished. */
+    queued?: boolean
 }
