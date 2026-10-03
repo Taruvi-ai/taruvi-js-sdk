@@ -58,7 +58,10 @@ Current transitions are deliberately explicit:
 - `get(id)` selects a record; `get(id).update(body)` selects a detail PATCH.
 - `sort`, `aggregate`, `groupBy`, `having`, and `allowedActions` append to their
   comma-separated parameters. `page`, `pageSize`, `search`, and repeated flat
-  filter keys replace the previous value.
+  filter keys replace the previous value. Use `filters(tree)` with an explicit
+  AND group to retain multiple conditions for the same field. Flat list values
+  use commas as separators; use the JSON tree overload when an individual
+  value contains a literal comma or needs its JSON type preserved.
 - `deleteFiltered()` converts filter conditions into the `filter` JSON
   parameter. It rejects an empty filter and selection modifiers it cannot
   honor, including search, pagination, and aggregation. Preserve these guards.
@@ -70,6 +73,8 @@ is interchangeable.
 ## Execution and response boundaries
 
 `execute()` builds the route and query string and calls `client.httpClient`.
+Record IDs are encoded as a URL path segment for reads, updates and deletes;
+characters such as `?`, `#`, `%` and `/` do not become URL controls.
 Database and Storage validate that a table or bucket was selected. Repeating
 execution sends another request; it does not cache or consume the builder.
 

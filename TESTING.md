@@ -51,3 +51,11 @@ is local adapter evidence, not a hosted login or published-package check.
 Prefer one parameterized test for a family of status codes or operators, and
 assert the observable request/response contract rather than implementation
 details such as private helper calls.
+
+The database transport review adds five actual Client/Axios cases. Three
+reserved-character ID cases failed before path encoding was fixed; read, PATCH
+and DELETE now keep the ID in its path segment without creating a query or
+fragment. The other cases verify the existing flat-key replacement contract,
+immutable builder reuse, and JSON tree preservation of repeated conditions and
+comma-containing list values. Run `npm test -- tests/unit/database/DatabaseTransport.test.ts`.
+These adapter checks do not prove a deployed backend accepts every text primary key.
