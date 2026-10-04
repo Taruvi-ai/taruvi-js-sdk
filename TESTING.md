@@ -45,7 +45,7 @@ replacing the signed-in browser session shared by ordinary clients. The
 browser-auth test exercises the real request interceptor, a second client, and
 clear behavior while asserting `X-Session-Token` on the configured first call.
 
-The October 3, 2026 gate passed **253 tests**, followed by `npm run build`
+The final October 4, 2026 gate passed **258 tests**, followed by `npm run test:types` and `npm run build`
 and `git diff --check`. Five new lifecycle cases failed before repair. This
 is local adapter evidence, not a hosted login or published-package check.
 
