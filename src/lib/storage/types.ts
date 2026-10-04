@@ -88,6 +88,7 @@ export interface StorageDeleteBatchResponse {
     message: string
     data: {
         deleted_count: number
+        message?: string
         failed: Array<{
             path: string
             error: string

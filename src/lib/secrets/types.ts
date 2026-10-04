@@ -49,11 +49,12 @@ export type SecretResponse = TaruviResponse<SecretData>
 export type SecretsListResponse = TaruviResponse<SecretData[]>
 
 // Batch get response - values only
-export type SecretsBatchResponse = TaruviResponse<Record<string, string>>
+export type SecretsBatchResponse = TaruviResponse<Record<string, SecretData["value"]>>
 
 // Batch get response - with metadata
 export type SecretsBatchMetadataResponse = TaruviResponse<Record<string, {
-    value: string
+    value: SecretData["value"]
     tags: string[]
     secret_type: string
+    sensitivity_level: "public" | "private" | "sensitive"
 }>>

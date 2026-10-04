@@ -67,8 +67,10 @@ per segment so `/` remains a path separator; metadata updates use PATCH.
 Check the service tests when changing either route convention.
 
 The transport unwraps the Axios response to its body, preserving the Taruvi
-response envelope where the endpoint returns one. Downloads request `blob`;
-JSON requests use `application/json`, while `FormData` lets Axios set the
+response envelope where the endpoint returns one. Browser downloads request
+`blob`; the Node HTTP adapter requests `arraybuffer` and converts its unchanged
+bytes into the same public Blob result. Binary JSON refusals are decoded before
+the typed error mapper. JSON requests use `application/json`, while `FormData` lets Axios set the
 multipart boundary.
 
 On HTTP 401, 410, or 419, the interceptor clears the session; 403 keeps it.

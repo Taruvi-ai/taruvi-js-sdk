@@ -100,3 +100,11 @@ independence in the same review. Start with the
 [Storage tests](../tests/unit/storage/StorageClient.test.ts), and
 [contribution workflow](09-contributing.md). Usage examples belong in the
 [public method reference](https://docs.taruvi.cloud/docs/build/javascript-reference).
+
+Upsert and bulk update preserve the backend `data.records/count` envelope, with
+result inference separate from the row type. Operation-preserving graph clones
+keep the mutation type and upsert route. Query setters that reset the operation
+to a read retain that behavior; apply query setters before choosing the write
+operation and then use `execute()`. `first()` and `count()` retain their
+row-returning builder binding and are unavailable after upsert or bulk update. See [`../TESTING.md`](../TESTING.md#mutation-result-inference)
+for a typed example and the required consumer probes.

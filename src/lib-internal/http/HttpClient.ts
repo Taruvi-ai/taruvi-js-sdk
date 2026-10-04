@@ -4,6 +4,7 @@ import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig 
 import { AuthError, createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
 import { clientIdentifier } from "../../version.js";
+import { getRuntimeEnvironment } from "../../utils/utils.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
@@ -112,11 +113,30 @@ export class HttpClient {
 
     async get<T>(endpoint: string, options?: { responseType?: 'json' | 'blob' }): Promise<T> {
         try {
-            const { data } = await this.axiosInstance.get<T>(`/${endpoint}`, {
-                ...(options?.responseType && { responseType: options.responseType }),
+            const serverDownload = options?.responseType === 'blob' && getRuntimeEnvironment() === 'Server'
+            const responseType = serverDownload ? 'arraybuffer' : options?.responseType
+            const response = await this.axiosInstance.get<T>(`/${endpoint}`, {
+                ...(responseType && { responseType }),
             })
-            return data as T
+            // Axios's Node HTTP adapter supports arraybuffer, not blob. Preserve
+            // the public Blob contract without decoding binary bytes as text.
+            return serverDownload
+                ? new Blob([response.data as BlobPart], { type: String(response.headers['content-type'] ?? '') }) as T
+                : response.data
         } catch (error) {
+            if (options?.responseType === 'blob' && error instanceof AxiosError && error.response) {
+                const body = error.response.data
+                const text = body instanceof Blob ? await body.text()
+                    : body instanceof ArrayBuffer || ArrayBuffer.isView(body) ? new TextDecoder().decode(body)
+                    : typeof body === 'string' ? body : undefined
+                if (text !== undefined) {
+                    try {
+                        error.response.data = JSON.parse(text)
+                    } catch {
+                        // A non-JSON refusal still maps by its HTTP status.
+                    }
+                }
+            }
             this.handleError(error)
         }
     }

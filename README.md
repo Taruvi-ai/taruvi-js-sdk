@@ -66,6 +66,12 @@ the invocation declaration also describes records received through HTTP clients.
 it before accessing object properties. The generic is a declaration of the
 expected output, without runtime schema validation.
 
+In this source branch, Storage downloads preserve binary bytes as a Blob in
+both browser and Node runtimes. Secret batch declarations admit JSON objects;
+App Settings includes `icon_background_color` and `default_frontend_worker_slug`
+and no banner fields. These changes require the matching source build and are
+not a claim about an older published package.
+
 ## Contributing
 
 [Maintainer documentation](https://github.com/Taruvi-ai/taruvi-js-sdk/blob/main/docs/README.md)
@@ -74,6 +80,7 @@ with dependencies installed:
 
 ```bash
 npm test
+npm run test:types
 npm run build
 ```
 

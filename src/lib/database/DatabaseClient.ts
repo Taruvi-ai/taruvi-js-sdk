@@ -2,7 +2,7 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterTreeRoot } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterTreeRoot, DatabaseMutationData } from "./types.js";
 import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -19,8 +19,14 @@ interface GraphQueryParams {
     relationship_type?: string[]
 }
 
+type ResultMode = 'rows' | 'mutation'
+type ResultData<T, Mode extends ResultMode> = Mode extends 'mutation' ? DatabaseMutationData<T> : T | T[]
+
 // Used to access app data
-export class Database<T = Record<string, unknown>> {
+export class Database<T = Record<string, unknown>, Mode extends ResultMode = 'rows'> {
+    // Type-only state: read helpers cannot consume a mutation envelope, even
+    // when T is an open record type or has columns named records/count.
+    declare private readonly resultMode: Mode
     private client: Client
     private urlParams: UrlParams
     private config: TaruviConfig
@@ -52,20 +58,20 @@ export class Database<T = Record<string, unknown>> {
     }
 
     // Graph traversal methods
-    include(direction: GraphInclude): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, include: direction }, this.isEdges)
+    include(direction: GraphInclude): Database<T, Mode> {
+        return new Database<T, Mode>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, include: direction }, this.isEdges, this.isUpsert)
     }
 
-    depth(n: number): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, depth: n }, this.isEdges)
+    depth(n: number): Database<T, Mode> {
+        return new Database<T, Mode>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, depth: n }, this.isEdges, this.isUpsert)
     }
 
-    format(fmt: GraphFormat): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, format: fmt }, this.isEdges)
+    format(fmt: GraphFormat): Database<T, Mode> {
+        return new Database<T, Mode>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, format: fmt }, this.isEdges, this.isUpsert)
     }
 
-    types(types: string[]): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, relationship_type: types }, this.isEdges)
+    types(types: string[]): Database<T, Mode> {
+        return new Database<T, Mode>(this.client, { ...this.urlParams }, this.operation, this.body, this.queryParams, { ...this.graphParams, relationship_type: types }, this.isEdges, this.isUpsert)
     }
 
     // Filter & query methods
@@ -225,17 +231,17 @@ export class Database<T = Record<string, unknown>> {
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    upsert(body: Partial<T> | Partial<T>[], uniqueFields?: string[]): Database<T> {
+    upsert(body: Partial<T> | Partial<T>[], uniqueFields?: string[]): Database<T, 'mutation'> {
         const qp = uniqueFields?.length ? { ...this.queryParams, unique_fields: uniqueFields.join(',') } : this.queryParams
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, qp, { ...this.graphParams }, this.isEdges, true)
+        return new Database<T, 'mutation'>(this.client, { ...this.urlParams }, HttpMethod.POST, body as object, qp, { ...this.graphParams }, this.isEdges, true)
     }
 
     update(body: Partial<T> | EdgeRequest): Database<T> {
         return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
-    bulkUpdate(body: Partial<T>[]): Database<T> {
-        return new Database<T>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
+    bulkUpdate(body: Partial<T>[]): Database<T, 'mutation'> {
+        return new Database<T, 'mutation'>(this.client, { ...this.urlParams }, HttpMethod.PATCH, body as object, this.queryParams, { ...this.graphParams }, this.isEdges)
     }
 
     delete(recordIdOrEdgeIds: string | number[]): Database<T> {
@@ -279,7 +285,7 @@ export class Database<T = Record<string, unknown>> {
         }, { ...this.graphParams }, this.isEdges)
     }
 
-    async first(): Promise<T | null> {
+    async first(this: Database<T>): Promise<T | null> {
         // A list read only needs one row; a single-record read is left as is. With an
         // explicit page, shrinking the page would move the offset, so read that page.
         const isListRead = !this.urlParams.recordId && (this.operation === undefined || this.operation === HttpMethod.GET)
@@ -292,7 +298,7 @@ export class Database<T = Record<string, unknown>> {
         return data ?? null
     }
 
-    async count(): Promise<number> {
+    async count(this: Database<T>): Promise<number> {
         // One row is enough: with a page size the platform also returns the full total.
         const response = await (this.urlParams.recordId ? this : this.pageSize(1)).execute()
         if (response.total !== undefined) {
@@ -320,7 +326,7 @@ export class Database<T = Record<string, unknown>> {
         return base + buildQueryString(allParams)
     }
 
-    async execute(): Promise<TaruviResponse<T | T[]>> {
+    async execute(): Promise<TaruviResponse<ResultData<T, Mode>>> {
         if (!this.urlParams.dataTables) {
             throw new Error('Table name is required. Call .from(tableName) first.')
         }

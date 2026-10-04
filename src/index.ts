@@ -35,7 +35,7 @@ export type { RoleData, AppSettingsData, RoleResponse, RolesListResponse, AppSet
 export type { FunctionRequest, FunctionResponse, FunctionInvocation, FunctionTaskResult } from "./lib/functions/types.js"
 
 // Database types
-export type { DatabaseRequest, DatabaseResponse, DatabaseSingleResponse, FilterOperator, GraphFormat, EdgeRequest, EdgeResponse, EdgeDeleteRequest, PgRangeValue, BackendFilterLeafNode, BackendFilterLogicalNode, BackendFilterNode, BackendFilterTreeRoot } from "./lib/database/types.js"
+export type { DatabaseRequest, DatabaseResponse, DatabaseSingleResponse, DatabaseMutationData, FilterOperator, GraphFormat, EdgeRequest, EdgeResponse, EdgeDeleteRequest, PgRangeValue, BackendFilterLeafNode, BackendFilterLogicalNode, BackendFilterNode, BackendFilterTreeRoot } from "./lib/database/types.js"
 export { isBackendFilterTreeRoot } from "./lib/database/types.js"
 
 // Enums / runtime constants
