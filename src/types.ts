@@ -16,7 +16,7 @@ export interface TaruviConfig {
     authMode?: AuthMode
     /** API key, sent only with `authMode: "apiKey"`. Never ship one to a browser or mobile app. */
     apiKey?: string
-    /** Session token for Node.js and React Native in session mode. Browsers read it from sign-in. */
+    /** Explicit session token, held in memory for this client in every runtime. Without it, browsers use the shared sign-in session. */
     token?: string
     /** Host of the hosted sign-in pages. Defaults to `apiUrl`. */
     deskUrl?: string

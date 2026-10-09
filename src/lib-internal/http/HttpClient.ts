@@ -1,9 +1,10 @@
 import type { TaruviConfig } from "../../types.js";
 import type { TokenClient } from "../token/TokenClient.js";
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
-import { createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
+import { AuthError, createErrorFromResponse, NetworkError, TaruviError } from "../errors/index.js";
 import type { ErrorResponseBody } from "../errors/index.js";
 import { clientIdentifier } from "../../version.js";
+import { getRuntimeEnvironment } from "../../utils/utils.js";
 
 /**
  * HttpClient handles all HTTP requests to the Taruvi API.
@@ -73,7 +74,12 @@ export class HttpClient {
             (response) => response,
             (error: AxiosError) => {
                 const status = error.response?.status
-                if (status !== undefined && SESSION_INVALID_STATUSES.has(status)) {
+                const failedSession = error.config?.headers?.['X-Session-Token']
+                if (
+                    status !== undefined && SESSION_INVALID_STATUSES.has(status) &&
+                    typeof failedSession === 'string' && failedSession &&
+                    failedSession === this.tokenClient.getSessionToken()
+                ) {
                     this.tokenClient.clearTokens()
                 }
                 return Promise.reject(error)
@@ -89,7 +95,15 @@ export class HttpClient {
         if (error instanceof AxiosError) {
             if (error.response) {
                 const body = error.response.data as ErrorResponseBody | undefined
-                throw createErrorFromResponse(error.response.status, body, parseRetryAfter(error.response.headers?.["retry-after"]))
+                const mapped = createErrorFromResponse(error.response.status, body, parseRetryAfter(error.response.headers?.["retry-after"]))
+                const currentSession = this.tokenClient.getSessionToken()
+                if (mapped instanceof AuthError && !this.apiKey && currentSession &&
+                    error.config?.headers?.['X-Session-Token'] !== currentSession) {
+                    // Tell consumers this failure belongs to an older session,
+                    // without putting either credential on the public error.
+                    throw new AuthError(mapped.message, mapped.detail, mapped.statusCode, true)
+                }
+                throw mapped
             }
             throw new NetworkError(error.message)
         }
@@ -99,11 +113,30 @@ export class HttpClient {
 
     async get<T>(endpoint: string, options?: { responseType?: 'json' | 'blob' }): Promise<T> {
         try {
-            const { data } = await this.axiosInstance.get<T>(`/${endpoint}`, {
-                ...(options?.responseType && { responseType: options.responseType }),
+            const serverDownload = options?.responseType === 'blob' && getRuntimeEnvironment() === 'Server'
+            const responseType = serverDownload ? 'arraybuffer' : options?.responseType
+            const response = await this.axiosInstance.get<T>(`/${endpoint}`, {
+                ...(responseType && { responseType }),
             })
-            return data as T
+            // Axios's Node HTTP adapter supports arraybuffer, not blob. Preserve
+            // the public Blob contract without decoding binary bytes as text.
+            return serverDownload
+                ? new Blob([response.data as BlobPart], { type: String(response.headers['content-type'] ?? '') }) as T
+                : response.data
         } catch (error) {
+            if (options?.responseType === 'blob' && error instanceof AxiosError && error.response) {
+                const body = error.response.data
+                const text = body instanceof Blob ? await body.text()
+                    : body instanceof ArrayBuffer || ArrayBuffer.isView(body) ? new TextDecoder().decode(body)
+                    : typeof body === 'string' ? body : undefined
+                if (text !== undefined) {
+                    try {
+                        error.response.data = JSON.parse(text)
+                    } catch {
+                        // A non-JSON refusal still maps by its HTTP status.
+                    }
+                }
+            }
             this.handleError(error)
         }
     }

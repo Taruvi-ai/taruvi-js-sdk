@@ -29,9 +29,13 @@ export class ValidationError extends TaruviError {
 }
 
 export class AuthError extends TaruviError {
-    constructor(message = 'Authentication required', detail?: string, statusCode = 401) {
+    /** The rejected request predates the currently stored session. Contains no credentials. */
+    public readonly staleSession: boolean
+
+    constructor(message = 'Authentication required', detail?: string, statusCode = 401, staleSession = false) {
         super(message, statusCode, ErrorCode.UNAUTHORIZED, detail)
         this.name = 'AuthError'
+        this.staleSession = staleSession
     }
 }
 

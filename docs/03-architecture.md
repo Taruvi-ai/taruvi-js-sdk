@@ -29,7 +29,7 @@ the TypeScript configuration type. `getConfig()` returns a shallow copy.
 
 | Mode | Request header | Configuration |
 | --- | --- | --- |
-| `session` | `X-Session-Token` when a token is available | Browser storage, or `token` outside the browser |
+| `session` | `X-Session-Token` when a token is available | Explicit `token` in client-local memory; otherwise shared browser storage |
 | `apiKey` | `Authorization: Api-Key …` | Requires `apiKey`; construction rejects browser and React Native runtimes |
 
 The request interceptor selects one SDK credential header. Session mode ignores
@@ -37,8 +37,10 @@ a leftover `apiKey`; API-key mode does not attach a session-token header.
 Axios also has `withCredentials: true`, so this does not disable applicable
 browser cookies. `X-Taruvi-Client` identifies the package version and runtime.
 
-Browser sessions use `localStorage`; other runtimes hold their supplied token
-in memory. In session mode, the client captures a sign-in fragment unless
+An explicit `token` stays in memory for that client, including in a browser.
+Ordinary browser clients share the `session_token` value in `localStorage`.
+Changing or clearing an explicitly configured client does not change that
+shared sign-in session or another configured client. In session mode, the client captures a sign-in fragment unless
 `detectSessionInUrl` is false. `Auth.handleRedirect()` uses the same helper.
 It removes sign-in fragment fields while preserving other fragment parameters
 and the router's history state.
@@ -65,8 +67,10 @@ per segment so `/` remains a path separator; metadata updates use PATCH.
 Check the service tests when changing either route convention.
 
 The transport unwraps the Axios response to its body, preserving the Taruvi
-response envelope where the endpoint returns one. Downloads request `blob`;
-JSON requests use `application/json`, while `FormData` lets Axios set the
+response envelope where the endpoint returns one. Browser downloads request
+`blob`; the Node HTTP adapter requests `arraybuffer` and converts its unchanged
+bytes into the same public Blob result. Binary JSON refusals are decoded before
+the typed error mapper. JSON requests use `application/json`, while `FormData` lets Axios set the
 multipart boundary.
 
 On HTTP 401, 410, or 419, the interceptor clears the session; 403 keeps it.

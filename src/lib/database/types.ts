@@ -87,6 +87,12 @@ export interface DatabaseRequest {
 export type DatabaseResponse<T = unknown> = TaruviResponse<T[]>
 export type DatabaseSingleResponse<T = unknown> = TaruviResponse<T>
 
+/** Upsert and bulk-update payloads preserve the platform's mutation envelope. */
+export interface DatabaseMutationData<T = unknown> {
+    records: T[]
+    count: number
+}
+
 // Graph traversal types
 export type GraphFormat = 'flat' | 'tree' | 'graph'
 

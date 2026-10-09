@@ -34,12 +34,12 @@ export interface AppSettingsData {
     icon_url: string | null
     primary_color: string
     secondary_color: string
-    banner_image: string | null
-    banner_image_url: string | null
+    icon_background_color: string
     category: string
     documentation_url: string | null
     support_email: string | null
     default_frontend_worker_url: string | null
+    default_frontend_worker_slug: string | null
     created_at: string
     updated_at: string
 }

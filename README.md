@@ -48,6 +48,30 @@ Keep API keys on the server; see [server authentication](https://docs.taruvi.clo
 
 Use the SDK version covered by each guide when following its examples.
 
+Function execute responses from the matching platform include an optional
+`queued` flag: asynchronous acknowledgements are true, synchronous results are
+false. Queued calls carry `data=[]`; a synchronous None result also becomes `[]`. An empty
+`data` array alone does not identify the mode. Older servers
+omit the flag; choose `async` explicitly when those servers are in use.
+
+Execution returns the full `FunctionResponse<T>` envelope. Invocation records
+use numeric `id`/`function`, nullable caller fields, and a nullable `task_result`.
+Read Celery state from `invocation.task_result?.status`; invocation records have
+no top-level `status` or `task_status`. Detail payloads include `logs`, while
+invocation lists omit them. `FunctionTaskResult` is exported for the nested
+retained metadata. The JavaScript `Functions` service currently exposes execute;
+the invocation declaration also describes records received through HTTP clients.
+
+`data` includes an empty-array acknowledgement, so typed consumers must narrow
+it before accessing object properties. The generic is a declaration of the
+expected output, without runtime schema validation.
+
+In this source branch, Storage downloads preserve binary bytes as a Blob in
+both browser and Node runtimes. Secret batch declarations admit JSON objects;
+App Settings includes `icon_background_color` and `default_frontend_worker_slug`
+and no banner fields. These changes require the matching source build and are
+not a claim about an older published package.
+
 ## Contributing
 
 [Maintainer documentation](https://github.com/Taruvi-ai/taruvi-js-sdk/blob/main/docs/README.md)
@@ -56,6 +80,7 @@ with dependencies installed:
 
 ```bash
 npm test
+npm run test:types
 npm run build
 ```
 

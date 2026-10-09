@@ -7,6 +7,7 @@ git clone --branch main https://github.com/Taruvi-ai/taruvi-js-sdk.git
 cd taruvi-js-sdk
 npm ci
 npm test
+npm run test:types
 npm run build
 ```
 
@@ -52,3 +53,8 @@ Run `npm run build` for the strict TypeScript source/declaration build. Tests
 are excluded from `tsconfig.json`; Vitest execution alone is not a test-file
 typecheck. For documentation-only changes, verify links, examples, and the
 package file list when the README or packaging guidance changes.
+
+The guarded owned-backend lane and module selectors are documented in
+[`../TESTING.md`](../TESTING.md#owned-real-http-acceptance). Keep that acceptance
+separate from the default unit gate and never point test teardown at a customer
+site. Declaration probes cover Functions, JSON Secrets batches and App Settings.
