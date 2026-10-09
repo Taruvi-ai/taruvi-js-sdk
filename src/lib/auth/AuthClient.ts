@@ -3,6 +3,7 @@ import type { TaruviResponse } from "../../types.js";
 import type { UserData } from "../users/types.js";
 import { AuthRoutes } from "../../lib-internal/routes/AuthRoutes.js";
 import { UserRoutes } from "../../lib-internal/routes/UserRoutes.js";
+import { captureSessionFromUrl } from "../../lib-internal/token/redirect.js";
 
 /**
  * Auth Client - Handles user authentication using Web UI Flow
@@ -21,7 +22,7 @@ export class Auth {
      * Redirect to login page (Web UI Flow)
      */
     login(callbackUrl?: string): void {
-        if (typeof window === "undefined") {
+        if (typeof window === "undefined" || !window.location) {
             console.error("login() can only be called in browser environment")
             return
         }
@@ -45,14 +46,15 @@ export class Auth {
      * Redirect to signup page (Web UI Flow)
      */
     signup(callbackUrl?: string): void {
-        if (typeof window === "undefined") {
+        if (typeof window === "undefined" || !window.location) {
             console.error("signup() can only be called in browser environment")
             return
         }
 
         const config = this.client.getConfig()
         const callback = callbackUrl || window.location.origin + window.location.pathname
-        const signupUrl = `${config.apiUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
+        const deskUrl = config.deskUrl || config.apiUrl
+        const signupUrl = `${deskUrl}/accounts/signup/?redirect_to=${encodeURIComponent(callback)}`
 
         if (typeof sessionStorage !== "undefined") {
             sessionStorage.setItem("auth_state", JSON.stringify({
@@ -68,28 +70,17 @@ export class Auth {
      * Logout user and redirect to logout page
      */
     async logout(callbackUrl?: string): Promise<void> {
-        if (typeof window === "undefined") {
-            console.error("logout() can only be called in browser environment")
+        // Forget the session in every runtime; only a browser can be redirected.
+        this.client.tokenClient.clearTokens()
+
+        if (typeof window === "undefined" || !window.location) {
             return
         }
 
-        this.client.tokenClient.clearTokens()
-
         const config = this.client.getConfig()
         const deskUrl = config.deskUrl || config.apiUrl
-        let callback: string = callbackUrl || ""
-
-        if (!callback) {
-            try {
-                const settings = await this.client.httpClient.get<{ frontend_url?: string }>(
-                    `api/sites/${config.appSlug}/metadata`
-                )
-                callback = settings.frontend_url || window.location.origin
-            } catch (error) {
-                console.error("Failed to fetch site settings, using origin:", error)
-                callback = window.location.origin
-            }
-        }
+        // The platform exposes no per-app frontend URL, so default to this app's origin.
+        const callback = callbackUrl || window.location.origin
 
         const logoutUrl = `${deskUrl}/accounts/logout/?redirect_to=${encodeURIComponent(callback)}`
         window.location.href = logoutUrl
@@ -121,6 +112,29 @@ export class Auth {
      */
     async validateSession(): Promise<void> {
         await this.client.httpClient.get(AuthRoutes.session())
+    }
+
+    /**
+     * Stores the session token that hosted sign-in added to the address, and
+     * removes the sign-in values from the address bar. Call it on the page users
+     * return to when the client was created with `detectSessionInUrl: false`.
+     * @returns The captured session token, or `null` when the address has none.
+     */
+    handleRedirect(url?: string): string | null {
+        return captureSessionFromUrl(this.client.tokenClient, url)
+    }
+
+    /**
+     * Uses `sessionToken` for later requests, for example one your app keeps in
+     * a cookie so server-rendered pages can act as the user.
+     */
+    setSession(sessionToken: string): void {
+        this.client.tokenClient.setAccessToken(sessionToken)
+    }
+
+    /** Forgets the stored session without redirecting. Use `logout()` to also end it on TaruviBase. */
+    clearSession(): void {
+        this.client.tokenClient.clearTokens()
     }
 
     /**

@@ -1,78 +1,110 @@
 # Releases and branches
 
-How `@taruvi/sdk` is versioned, which branch to use, and how packages get published to npm.
+The active release configuration is
+[`.github/workflows/publish.yml`](../.github/workflows/publish.yml).
+The similarly named `.github/worflows/` directory is not a GitHub Actions
+workflow directory.
 
-## Branches
+## Branch behavior
 
-| Branch | Purpose | npm dist-tag |
-|--------|---------|----------------|
-| **`main`** | Stable releases for production apps | `latest` (default when you `npm install @taruvi/sdk`) |
-| **`beta`** | Experimental releases — new APIs or behavior still being validated | `beta` (install with `npm install @taruvi/sdk@beta`) |
+| Push target | Version in `package.json` | Result |
+| --- | --- | --- |
+| `beta` | Pre-release, such as `1.5.4-beta.1` | Published with npm `beta`; GitHub pre-release `v1.5.4-beta.1` |
+| `main` | Stable, such as `1.5.4` | Published with npm `latest`; GitHub release `v1.5.4` |
+| `main` | Pre-release | Fails: npm refuses a pre-release without an explicit tag |
+| Either | Already on npm | Nothing published |
+| Other branches | — | No publish workflow trigger |
 
-Use **`main`** when you want the supported, stable SDK. Use **`beta`** when you need early access and can accept breaking or in-flux changes.
+Publishing uses [`JS-DevTools/npm-publish`](https://github.com/JS-DevTools/npm-publish),
+which skips a version that is already on npm, and
+[`softprops/action-gh-release`](https://github.com/softprops/action-gh-release),
+which creates the Git tag and a GitHub release with generated notes after a
+publish.
 
-## Installing a release
+The workflow never moves dist-tags: trusted publishing covers `npm publish`,
+not `npm dist-tag`. A version therefore reaches `latest` only by being
+published from `main`. Test `1.5.4-beta.1` from `beta`, then set `1.5.4` on the
+branch that merges into `main`. Keep `beta` on pre-release versions: a stable
+version published from `beta` lands on the `beta` tag, and moving it to
+`latest` then takes a maintainer running `npm dist-tag add` with 2FA.
 
-```bash
-# Stable (from main)
-npm install @taruvi/sdk
+Set the version with `npm version <version> --no-git-tag-version`, which updates
+`package.json` and the root version in `package-lock.json` together.
+`src/version.ts` reads the package version; it has no separate version literal.
 
-# Experimental (from beta)
-npm install @taruvi/sdk@beta
-```
+## Trusted publishing
 
-Check `package.json` in this repo for the current version (e.g. `1.5.0` on main, `1.5.0-beta.1` on beta).
+The workflow publishes with [npm trusted publishing](https://docs.npmjs.com/trusted-publishers):
+GitHub issues a short-lived identity token for each run, and no npm token is
+stored in GitHub or Infisical. It needs:
 
-## How publishing works (CI/CD)
+- a trusted publisher on the package's npmjs.com settings page: GitHub Actions,
+  organization `Taruvi-ai`, repository `taruvi-js-sdk`, workflow `publish.yml`,
+  and no environment;
+- `repository.url` in `package.json` matching this repository;
+- `id-token: write` in the workflow and npm 11.5.1 or later; Node 24 ships it.
 
-Publishing is **automated** when you push to **`main`** or **`beta`** after changing the version in [`package.json`](../package.json).
+npm doesn't check the trusted publisher when it is saved; a mismatch surfaces as
+a failed `npm publish`. Renaming `publish.yml` requires updating it on npm.
 
-1. **Bump the version** in `package.json` on the branch you are releasing from (`main` for stable, `beta` for experimental).
-2. **Commit and push** (or upload) to that branch on the remote.
-3. **GitHub Actions** runs the publish workflow (see [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)):
-   - Installs dependencies (`npm install`)
-   - Runs the test suite (`npm test`)
-   - Detects whether this version is new (compares `package.json` version to existing git tags)
-   - If the version is new: creates a git tag `v{version}`, then publishes to the npm registry
-4. **Which npm tag is used depends on the branch:**
-   - Push to **`main`** → publish a **stable** release (`latest` on npm)
-   - Push to **`beta`** → publish an **experimental** release (`beta` on npm)
+## Before releasing
 
-If the version in `package.json` was already tagged and published, the workflow skips publishing (no duplicate release for the same version).
-
-## Maintainer checklist
-
-**Stable release (main):**
-
-```bash
-# On main — use semver without -beta suffix, e.g. 1.6.0
-# Edit package.json "version", then:
-git add package.json
-git commit -m "chore: release v1.6.0"
-git push origin main
-```
-
-**Experimental release (beta):**
+Use the lockfile for local verification:
 
 ```bash
-# On beta — use a beta semver, e.g. 1.6.0-beta.2
-# Edit package.json "version", then:
-git add package.json
-git commit -m "chore: release v1.6.0-beta.2"
-git push origin beta
-```
-
-After CI succeeds, verify on [npmjs.com/package/@taruvi/sdk](https://www.npmjs.com/package/@taruvi/sdk) under **Versions** / **Tags**.
-
-## Local verification before release
-
-```bash
-npm install
+npm ci
 npm test
 npm run build
+npm pack --dry-run --json
 ```
 
-## See also
+Check that the archive contains built code/declarations, `README.md`, and
+package metadata. `docs/` is excluded by the `files` allowlist, so shortening
+this folder does not reduce the npm package. Build before checking the archive:
+`prepublishOnly` runs `npm run build` during publish, not during `npm pack`.
 
-- [Introduction — Installation](01-introduction.md#installation)
-- [Advanced topics — Packaging](07-advanced-topics.md#packaging--consumption)
+The workflow runs `npm ci`, `npm test`, and `npm run build` on Node 24 before
+publishing, and a failure stops the release. The publish step runs with
+`--ignore-scripts`, so `prepublishOnly` doesn't run; the build step does that
+work. A push whose version is already on npm, such as a docs-only change,
+publishes nothing.
+
+## Documentation release check
+
+Keep package and public documentation changes in review branches until their
+versions and destinations agree:
+
+1. Confirm the intended SDK version and any dependent provider release.
+2. Verify that the public [SDK guide](https://docs.taruvi.cloud/docs/build/javascript),
+   [authentication guide](https://docs.taruvi.cloud/docs/build/javascript-authentication),
+   and [method reference](https://docs.taruvi.cloud/docs/build/javascript-reference)
+   are accessible to readers and describe that SDK version.
+3. Check README links and the short pointers at the old guide paths. Preserve
+   those files for existing GitHub bookmarks; add new usage material only to
+   the public docs.
+4. Complete this check before merging a README handoff into a publishing branch.
+   If the matching public docs are not live, hold that handoff on its review
+   branch. A local preview or HTTP error does not establish availability.
+
+The public docs source lives in `taruvi-platform/docs/docs/build/`; product
+workflows live in `taruvi-platform/docs/docs/products/`. Coordinate those
+changes with the SDK release rather than copying a second manual here.
+
+## Verify publication
+
+The Git tag and GitHub release are created only after npm accepts the version.
+After the workflow completes, inspect the registry:
+
+```bash
+npm view @taruvi/sdk dist-tags --json
+npm view @taruvi/sdk@VERSION version dist.integrity --json
+```
+
+Replace `VERSION` with the release version. Confirm that the intended dist-tag
+points to it, then install that exact package in a consumer and check imports
+and the relevant SDK/provider flow.
+
+If publication fails, fix the cause and re-run the workflow: it checks npm, not
+Git tags, so a failed run doesn't block the retry. Published versions cannot be
+overwritten; subsequent package or npm README changes require a new package
+version.

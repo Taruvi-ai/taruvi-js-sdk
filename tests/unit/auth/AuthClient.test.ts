@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Auth } from '../../../src/lib/auth/AuthClient.js'
 import { Client } from '../../../src/client.js'
 
@@ -31,16 +31,66 @@ describe('Auth', () => {
     })
 
     describe('isUserAuthenticated()', () => {
-        it('returns true when user is authenticated', () => {
+        it('returns true when the stored session is valid', async () => {
             mockTokenClient.isAuthenticated.mockReturnValue(true)
+            mockHttpClient.get.mockResolvedValue({})
             const auth = new Auth(mockClient)
-            expect(auth.isUserAuthenticated()).toBe(true)
+            await expect(auth.isUserAuthenticated()).resolves.toBe(true)
         })
 
-        it('returns false when user is not authenticated', () => {
+        it('returns false without a stored session token', async () => {
             mockTokenClient.isAuthenticated.mockReturnValue(false)
             const auth = new Auth(mockClient)
-            expect(auth.isUserAuthenticated()).toBe(false)
+            await expect(auth.isUserAuthenticated()).resolves.toBe(false)
+        })
+    })
+
+    describe('hosted sign-in redirects', () => {
+        const location = { href: '', origin: 'https://app.test.com', pathname: '/tasks' }
+
+        beforeEach(() => {
+            location.href = ''
+            vi.stubGlobal('window', { location })
+        })
+
+        afterEach(() => {
+            vi.unstubAllGlobals()
+        })
+
+        it('login() and signup() both use deskUrl', () => {
+            const auth = new Auth(mockClient)
+            const callback = encodeURIComponent('https://app.test.com/tasks')
+
+            auth.login()
+            expect(location.href).toBe(`https://desk.test.com/accounts/login/?redirect_to=${callback}`)
+
+            auth.signup()
+            expect(location.href).toBe(`https://desk.test.com/accounts/signup/?redirect_to=${callback}`)
+        })
+
+        it('logout() clears the session and returns to the app origin', async () => {
+            const auth = new Auth(mockClient)
+            await auth.logout()
+            expect(mockTokenClient.clearTokens).toHaveBeenCalled()
+            expect(location.href).toBe(
+                `https://desk.test.com/accounts/logout/?redirect_to=${encodeURIComponent('https://app.test.com')}`
+            )
+        })
+    })
+
+    describe('outside a browser', () => {
+        afterEach(() => {
+            vi.unstubAllGlobals()
+        })
+
+        it('login() does not throw when window has no location (React Native)', () => {
+            vi.stubGlobal('window', {})
+            expect(() => new Auth(mockClient).login()).not.toThrow()
+        })
+
+        it('logout() still clears the stored session', async () => {
+            await new Auth(mockClient).logout()
+            expect(mockTokenClient.clearTokens).toHaveBeenCalled()
         })
     })
 

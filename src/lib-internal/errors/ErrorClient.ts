@@ -29,22 +29,22 @@ export class ValidationError extends TaruviError {
 }
 
 export class AuthError extends TaruviError {
-    constructor(message = 'Authentication required') {
-        super(message, 401, ErrorCode.UNAUTHORIZED)
+    constructor(message = 'Authentication required', detail?: string, statusCode = 401) {
+        super(message, statusCode, ErrorCode.UNAUTHORIZED, detail)
         this.name = 'AuthError'
     }
 }
 
 export class ForbiddenError extends TaruviError {
-    constructor(message = 'Permission denied') {
-        super(message, 403, ErrorCode.FORBIDDEN)
+    constructor(message = 'Permission denied', detail?: string) {
+        super(message, 403, ErrorCode.FORBIDDEN, detail)
         this.name = 'ForbiddenError'
     }
 }
 
 export class NotFoundError extends TaruviError {
-    constructor(message = 'Resource not found') {
-        super(message, 404, ErrorCode.NOT_FOUND)
+    constructor(message = 'Resource not found', detail?: string) {
+        super(message, 404, ErrorCode.NOT_FOUND, detail)
         this.name = 'NotFoundError'
     }
 }
@@ -57,8 +57,8 @@ export class ConflictError extends TaruviError {
 }
 
 export class TimeoutError extends TaruviError {
-    constructor(message = 'Request timeout') {
-        super(message, 504, ErrorCode.GATEWAY_TIMEOUT)
+    constructor(message = 'Request timeout', detail?: string) {
+        super(message, 504, ErrorCode.GATEWAY_TIMEOUT, detail)
         this.name = 'TimeoutError'
     }
 }
@@ -66,8 +66,8 @@ export class TimeoutError extends TaruviError {
 export class RateLimitError extends TaruviError {
     public readonly retryAfter: number | undefined
 
-    constructor(message = 'Rate limit exceeded', retryAfter?: number) {
-        super(message, 429, ErrorCode.RATE_LIMITED)
+    constructor(message = 'Rate limit exceeded', retryAfter?: number, detail?: string) {
+        super(message, 429, ErrorCode.RATE_LIMITED, detail)
         this.name = 'RateLimitError'
         this.retryAfter = retryAfter
     }
@@ -83,9 +83,46 @@ export class NetworkError extends TaruviError {
 /**
  * Maps HTTP status + response body to the appropriate typed error.
  */
-export function createErrorFromResponse(statusCode: number, body?: ErrorResponseBody): TaruviError {
-    const message = body?.message || 'Request failed'
+export type BillingErrorCode =
+    | ErrorCode.ACCOUNT_SUSPENDED
+    | ErrorCode.PRODUCT_SUSPENDED
+    | ErrorCode.GATE_UNAVAILABLE
+
+const BILLING_CODES = new Set<string>([
+    ErrorCode.ACCOUNT_SUSPENDED,
+    ErrorCode.PRODUCT_SUSPENDED,
+    ErrorCode.GATE_UNAVAILABLE,
+])
+
+/**
+ * The organization's billing blocked the request.
+ * - `account_suspended` (402): the account isn't active.
+ * - `product_suspended` (429): the plan's usage for `module` is used up for this period.
+ * - `gate_unavailable` (503): billing status couldn't be read; retry shortly.
+ */
+export class BillingError extends TaruviError {
+    declare readonly code: BillingErrorCode
+    /** The product area that was blocked, such as `database`. */
+    public readonly module: string | undefined
+    /** Only `gate_unavailable` is worth retrying. */
+    public readonly retryable: boolean
+
+    constructor(message: string, statusCode: number, code: BillingErrorCode, module?: string, detail?: string) {
+        super(message, statusCode, code, detail)
+        this.name = 'BillingError'
+        this.module = module
+        this.retryable = code === ErrorCode.GATE_UNAVAILABLE
+    }
+}
+
+export function createErrorFromResponse(statusCode: number, body?: ErrorResponseBody, retryAfter?: number): TaruviError {
+    // Some refusals, such as billing gates, carry only `detail`.
+    const message = body?.message || body?.detail || 'Request failed'
     const code = body?.code || ErrorCode.INTERNAL_ERROR
+
+    if (BILLING_CODES.has(code)) {
+        return new BillingError(message, statusCode, code as BillingErrorCode, body?.module, body?.detail)
+    }
     const detail = body?.detail
     const errors = body?.errors
     const data = body?.data
@@ -97,17 +134,21 @@ export function createErrorFromResponse(statusCode: number, body?: ErrorResponse
             }
             return new TaruviError(message, 400, code, detail, errors, data)
         case 401:
-            return new AuthError(message)
+            return new AuthError(message, detail)
+        // 410 and 419 mean the session expired or was ended; treat them like 401.
+        case 410:
+        case 419:
+            return new AuthError(body?.message || 'Session expired', detail, statusCode)
         case 403:
-            return new ForbiddenError(message)
+            return new ForbiddenError(message, detail)
         case 404:
-            return new NotFoundError(message)
+            return new NotFoundError(message, detail)
         case 409:
             return new ConflictError(message, detail)
         case 429:
-            return new RateLimitError(message)
+            return new RateLimitError(message, retryAfter, detail)
         case 504:
-            return new TimeoutError(message)
+            return new TimeoutError(message, detail)
         default:
             return new TaruviError(message, statusCode, code, detail, errors, data)
     }

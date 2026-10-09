@@ -41,14 +41,15 @@ export class App {
         )
     }
 
-    async execute() {
+    /** Resolves with `RolesListResponse` after `roles()` or `AppSettingsResponse` after `settings()`; pass the type to narrow it. */
+    async execute<T = unknown>(): Promise<T> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 
         switch (operation) {
             case HttpMethod.GET:
             default:
-                return await this.client.httpClient.get(url)
+                return await this.client.httpClient.get<T>(url)
         }
     }
 }

@@ -188,6 +188,38 @@ describe('createErrorFromResponse', () => {
         expect(err).toBeInstanceOf(TimeoutError)
     })
 
+    it('keeps detail on 401, 403, 404, and 504 errors', () => {
+        for (const status of [401, 403, 404, 504]) {
+            const err = createErrorFromResponse(status, {
+                status: 'error',
+                code: 'X',
+                message: 'Failed',
+                detail: 'More context'
+            })
+            expect(err.statusCode).toBe(status)
+            expect(err.detail).toBe('More context')
+        }
+    })
+
+    it('maps expired sessions (410, 419) to AuthError with their status', () => {
+        for (const status of [410, 419]) {
+            const err = createErrorFromResponse(status, undefined)
+            expect(err).toBeInstanceOf(AuthError)
+            expect(err.statusCode).toBe(status)
+            expect(err.message).toBe('Session expired')
+        }
+    })
+
+    it('429 carries the Retry-After delay', () => {
+        const err = createErrorFromResponse(429, {
+            status: 'error',
+            code: 'RATE_LIMITED',
+            message: 'Too many requests'
+        }, 30)
+        expect(err).toBeInstanceOf(RateLimitError)
+        expect((err as RateLimitError).retryAfter).toBe(30)
+    })
+
     it('429 returns RateLimitError', () => {
         const err = createErrorFromResponse(429, {
             status: 'error',

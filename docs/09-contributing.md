@@ -1,86 +1,54 @@
 # Contributing
 
-## Setup
+## Set up the checkout
 
 ```bash
-git clone <repo>
-cd taruvi-sdk
-npm install
-npm run build   # TypeScript → dist/
-npm test        # Vitest unit tests
+git clone --branch main https://github.com/Taruvi-ai/taruvi-js-sdk.git
+cd taruvi-js-sdk
+npm ci
+npm test
+npm run build
 ```
 
-## Project structure
+Use a Node.js runtime with JSON import-attribute support for the emitted SDK.
+The publish workflow uses Node 24; see the
+[public compatibility requirements](https://docs.taruvi.cloud/docs/build/javascript#package-compatibility)
+and [release verification](08-releases-and-branches.md) when choosing a toolchain.
+TypeScript, Node declarations, and Vitest are development dependencies; Axios
+is the package's peer dependency.
 
-```
-src/
-├── index.ts                  # Public exports (everything consumers can import)
-├── client.ts                 # Root Client class (config, token, http wiring)
-├── types.ts                  # Shared types (TaruviConfig, TaruviResponse, filters)
-├── utils/                    # Shared utilities (buildQueryString, etc.)
-├── lib/                      # Public service clients
-│   ├── database/             # Database (builder)
-│   ├── storage/              # Storage (builder)
-│   ├── app/                  # App (builder)
-│   ├── secrets/              # Secrets (builder for .get(), direct for .list())
-│   ├── auth/                 # Auth (direct, browser-oriented)
-│   ├── users/                # User (direct)
-│   ├── functions/            # Functions (direct)
-│   ├── analytics/            # Analytics (direct)
-│   ├── settings/             # Settings (direct)
-│   └── policy/               # Policy (direct)
-└── lib-internal/             # SDK internals (not for app code)
-    ├── http/                 # HttpClient (Axios wrapper, auth headers, error mapping)
-    ├── token/                # TokenClient (session token storage)
-    ├── routes/               # URL route builders per service
-    └── errors/               # Typed error classes
-```
+## Make a focused change
 
-## Adding a new service client
+1. Find the owning service in `src/lib/` and its routes in
+   `src/lib-internal/routes/`; use the [architecture map](03-architecture.md).
+2. Verify the backend path, method, input, response envelope, and relevant
+   error or partial-failure behavior. A TypeScript return annotation is not
+   evidence of the wire contract.
+3. Add or update public types beside the service and export intended public
+   APIs from `src/index.ts`. Use `.js` extensions for relative source imports,
+   as required by the package's NodeNext ESM layout.
+4. Preserve [builder state and branching](02-builder-pattern.md). Test the
+   chain combinations affected by the change, including sibling queries.
+5. Update the matching public SDK/product documentation and its supported
+   version. Update these maintainer notes only when design or workflow changes.
 
-1. Create `src/lib/<name>/` with `<Name>Client.ts` and `types.ts`
-2. Add route builder in `src/lib-internal/routes/<Name>Routes.ts`
-3. Export the client and types from `src/index.ts`
-4. Add tests in `tests/unit/<name>/`
-5. Document in `docs/04-clients.md` and `docs/05-api-reference.md`
+Do not commit generated `dist/` files. Keep dependency changes and their
+lockfile changes together. Use a review branch; pushes to `main` and `beta`
+have [publishing effects](08-releases-and-branches.md#branch-behavior).
 
-## Adding a method to an existing builder
+## Verification
 
-For builder clients (`Database`, `Storage`, `App`, `Secrets.get()`):
+`npm test` runs Vitest under `tests/unit/`; `npm run test:watch` runs watch mode.
+Most service tests use [the shared mock client](../tests/fixtures/mockClient.ts)
+to assert exact routes, HTTP methods, bodies, and response handling.
 
-- Return `new ClassName(...)` with spread of existing state + your change
-- If the param is comma-separated and chaining should accumulate (like `sort`, `aggregate`), append to existing value instead of replacing
-- If the param replaces on each call (like `page`, `search`), overwrite directly
+For transport or authentication changes, exercise the real interceptors and
+runtime behavior as in [auth-modes.test.ts](../tests/unit/client/auth-modes.test.ts).
+For error changes, cover the response-to-error mapping in
+[errors.test.ts](../tests/unit/errors/errors.test.ts). Mocked requests do not
+establish deployed-backend compatibility; record any integration checks separately.
 
-## Conventions
-
-- **Immutable builders** — every chain method returns a new instance, never mutates `this`
-- **No leading slash** on route strings — `HttpClient` prepends `/` automatically
-- **Types** — each module has its own `types.ts`; shared types go in `src/types.ts`
-- **Errors** — use typed errors from `lib-internal/errors/`; `HttpClient` maps HTTP status codes automatically
-- **Peer deps** — `axios` and `typescript` are peers, not bundled
-
-## Tests
-
-Tests live in `tests/unit/<module>/` and use Vitest. Pattern:
-
-- Mock `client.httpClient` methods (`get`, `post`, `patch`, `delete`)
-- Call the builder chain → `.execute()`
-- Assert the URL and body passed to the mock
-
-Run:
-```bash
-npm test              # single run
-npm run test:watch    # watch mode
-```
-
-## Build output
-
-`tsc` compiles to `dist/` as ESM (`.js` + `.d.ts`). The package is ESM-only (`"type": "module"`).
-
-## Branching
-
-- `main` — stable releases
-- `beta` — experimental releases
-
-Bumping `version` in `package.json` and pushing triggers CI/CD publish. See [Releases & branches](08-releases-and-branches.md).
+Run `npm run build` for the strict TypeScript source/declaration build. Tests
+are excluded from `tsconfig.json`; Vitest execution alone is not a test-file
+typecheck. For documentation-only changes, verify links, examples, and the
+package file list when the README or packaging guidance changes.

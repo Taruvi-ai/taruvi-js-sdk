@@ -118,6 +118,22 @@ export interface RevokeRolesRequest {
     usernames: string[]
 }
 
-export type RolesResponse = TaruviResponse<{
-    count: number
-}>
+/** One role assignment or revocation that failed, such as an unknown user or role. */
+export interface RoleChangeFailure {
+    username: string
+    role: string
+    error: string
+}
+
+/**
+ * Result of `assignRoles()` / `revokeRoles()`. Existing assignments (or missing
+ * ones, when revoking) are skipped and count as success; `data.failures` is
+ * present only when some changes failed.
+ */
+export interface RolesResponse {
+    status: "success" | "error"
+    message: string
+    data?: {
+        failures: RoleChangeFailure[]
+    }
+}

@@ -10,7 +10,7 @@ import type {
     StorageBrowseFilters,
 } from "./types.js";
 import { StorageRoutes, type StorageRouteKey } from "../../lib-internal/routes/StorageRoutes.js";
-import type { TaruviConfig, StorageFilters } from "../../types.js";
+import type { TaruviConfig, TaruviResponse, StorageFilters } from "../../types.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -143,8 +143,9 @@ export class Storage {
      * - Upload: StorageUploadBatchResponse
      * - Delete: StorageDeleteBatchResponse
      * - Update: StorageResponse
+     * - View / edit access: TaruviResponse<StorageAccessLinkResponse>
      */
-    async execute<T = StorageListResponse | StorageBrowseResponse | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob | StorageAccessLinkResponse>(): Promise<T> {
+    async execute<T = StorageListResponse | StorageBrowseResponse | StorageResponse | StorageUploadBatchResponse | StorageDeleteBatchResponse | Blob | TaruviResponse<StorageAccessLinkResponse>>(): Promise<T> {
         const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
 

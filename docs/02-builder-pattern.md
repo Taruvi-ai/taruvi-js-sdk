@@ -1,200 +1,97 @@
-# Builder pattern
+# Builder design
 
-Several SDK services use an **immutable fluent builder**: you chain methods to describe a request, then call a terminal method to run it. No HTTP request is sent until you reach that terminal.
+`Database`, `Storage`, `App`, and `Secrets.get()` describe requests with new
+builder instances. Their `execute()` methods send the requests. Direct clients
+such as `User`, `Functions`, and `Analytics`, and the `Secrets.list()` method,
+perform the call immediately when invoked.
 
-**Builder services:** `Database`, `Storage`, `App`, and `Secrets.get()`
+## Why builders return new instances
 
-**Direct services (no builder):** `Auth`, `User`, `Functions`, `Analytics`, `Settings`, `Policy`, plus `Secrets.list()`
-
-## Why a new instance on every chain step
-
-Each builder holds private state for a single request:
-
-- **URL segments** — table name, bucket, record ID, paths
-- **HTTP operation** — GET, POST, PATCH, DELETE
-- **Request body** — create/update payloads
-- **Query parameters** — filters, pagination, sorting, graph options
-
-If the builder were **mutable** (reusing one object and updating fields in place), a second chain from the same starting point would overwrite the first:
+A base query can be reused for independent requests. A method must not change
+its receiver's query or path while creating a sibling:
 
 ```typescript
-// Hypothetical MUTABLE builder (NOT how this SDK works)
-const base = db.from('accounts')
-base.filters('status', 'eq', 'active')  // mutates base
-base.page(2)                              // overwrites filters on same object
-// Result: broken — only page=2, lost status filter
+import {Database} from '@taruvi/sdk'
+import type {Client} from '@taruvi/sdk'
+
+declare const client: Client
+const accounts = new Database(client).from('accounts')
+const active = accounts.filters('status', 'eq', 'active')
+const sorted = accounts.sort('name', 'asc')
+
+await active.execute()
+await sorted.execute()
 ```
 
-The Taruvi SDK avoids this by returning a **new instance** on every chain method. Each instance copies prior state forward with object spread, then applies the new change:
+The first request includes `status=active`; the second includes `ordering=name`
+and does not inherit the first request's filter. The same rule applies to
+storage filters and graph traversals. These cases are covered by
+[builder immutability tests](../tests/unit/edge-cases/robustness.test.ts).
 
-```typescript
-// Actual IMMUTABLE builder
-filters(field, operator, value) {
-  return new Database(this.client, { ...this.urlParams }, undefined, undefined, {
-    ...this.queryParams,
-    [filterKey]: filterValue
-  }, { ...this.graphParams }, this.isEdges)
-}
-```
+The shared `Client` still owns mutable session state. Builder constructors also
+retain some payload and option references: this is request-state branching,
+not deep cloning or freezing of caller-owned objects.
 
-This means:
+## Database state and transitions
 
-1. **Multiple independent queries** — Start from the same `from('accounts')` and branch into different filters, pages, or sorts without cross-contamination.
-2. **No stale URLs** — Each chain captures its own snapshot of params; executing one chain never changes another.
-3. **Safe reuse** — Store a `base` query and derive variants (`activeUsers`, `page2`, `sortedByName`) as siblings, not mutations.
+[`DatabaseClient.ts`](../src/lib/database/DatabaseClient.ts) holds:
 
-### Immutability in practice
+| State | Purpose |
+| --- | --- |
+| `urlParams` | Table and optional record ID |
+| `queryParams` | Filters, ordering, pagination, projection, and aggregates |
+| `graphParams` | Traversal direction, depth, format, and relationship types |
+| `operation`, `body` | HTTP method and write payload |
+| `isEdges`, `isUpsert` | Edge-table selection and upsert route suffix |
 
-```typescript
-const base = new Database(client).from('accounts')
+Review every constructor call when adding state. Forwarding only the query
+parameters can silently lose a method, body, or routing flag.
 
-const active = base.filters('status', 'eq', 'active')
-const sorted = base.sort('name', 'asc')
+Current transitions are deliberately explicit:
 
-await active.execute()  // URL contains status=active, no ordering
-await sorted.execute()  // URL contains ordering=name, no status filter
-```
+- `from<U>(table)` selects the table and record type `U`. It resets
+  query/graph state and the selected operation; do not assume a preceding
+  `Database<T>` type argument carries through `from()`.
+- Methods such as `filters`, `sort`, `page`, and `pageSize` construct a read
+  builder, resetting the operation and body. Put write operations after query
+  configuration, immediately before `execute()`.
+- `get(id)` selects a record; `get(id).update(body)` selects a detail PATCH.
+- `sort`, `aggregate`, `groupBy`, `having`, and `allowedActions` append to their
+  comma-separated parameters. `page`, `pageSize`, `search`, and repeated flat
+  filter keys replace the previous value.
+- `deleteFiltered()` converts filter conditions into the `filter` JSON
+  parameter. It rejects an empty filter and selection modifiers it cannot
+  honor, including search, pagination, and aggregation. Preserve these guards.
 
-The SDK tests this behavior explicitly in `tests/unit/edge-cases/robustness.test.ts` under **Builder immutability**.
+Graph helpers and operation methods have their own forwarding rules. Verify
+the actual combinations being changed rather than assuming every chain order
+is interchangeable.
 
-### Accumulating methods
+## Execution and response boundaries
 
-Most builder methods **replace** the corresponding query param (e.g. `.page(2)` overwrites any prior page value). However, the following methods **accumulate** when chained — each call appends to the existing value with a comma separator:
+`execute()` builds the route and query string and calls `client.httpClient`.
+Database and Storage validate that a table or bucket was selected. Repeating
+execution sends another request; it does not cache or consume the builder.
 
-| Method | Query param | Example |
-|--------|-------------|---------|
-| `sort` | `ordering` | `.sort('name', 'asc').sort('created_at', 'desc')` → `ordering=name,-created_at` |
-| `aggregate` | `_aggregate` | `.aggregate('sum(salary)').aggregate('avg(age)')` → `_aggregate=sum(salary),avg(age)` |
-| `groupBy` | `_group_by` | `.groupBy('dept').groupBy('role')` → `_group_by=dept,role` |
-| `having` | `_having` | `.having('count__gt=5').having('sum_salary__gte=1000')` → `_having=count__gt=5,sum_salary__gte=1000` |
-| `allowedActions` | `allowed_actions` | `.allowedActions(['read']).allowedActions(['write'])` → `allowed_actions=read,write` |
+`Database.first()` uses a one-row list read when no page is specified, then
+returns the first row or `null`. `count()` uses a one-row list read and prefers
+`total`, with an array-length fallback. Both perform HTTP requests.
 
-You can still pass everything in a single call (e.g. `sort([{field:'name'},{field:'created_at',order:'desc'}])`); accumulation simply makes incremental chaining safe.
+`Storage.getUrl()` only builds a URL. `Storage.upload()` constructs `FormData`
+while configuring the operation, so that runtime API is needed before
+`execute()`. `Storage.filter()` replaces the filter object; it does not merge
+successive filter objects.
 
-## How the builder works
+Generic arguments describe expected responses; they do not validate JSON at
+runtime. Keep envelope handling aligned with the service's actual return
+shape. For example, SharePoint access links are
+`TaruviResponse<StorageAccessLinkResponse>`.
 
-### 1. Configure (no network)
+## Reviewing a builder change
 
-Chain methods only update internal state and return a new builder instance:
-
-```
-new Database(client)
-  → .from('accounts')           // sets table
-  → .filters('status', 'eq', 'active')
-  → .sort('created_at', 'desc')
-  → .page(1).pageSize(20)
-```
-
-Until you call a terminal, **nothing is sent over the wire**.
-
-### 2. Execute (HTTP)
-
-Terminal methods build the URL, call `HttpClient`, and return the response:
-
-| Terminal | Service | Behavior |
-|----------|---------|----------|
-| `.execute()` | Database, Storage, App, Secrets | Runs the configured request |
-| `.first()` | Database | `.execute()` then returns first row or `null` |
-| `.count()` | Database | `.execute()` then returns `total` or array length |
-
-### 3. URL construction
-
-Internally, `execute()`:
-
-1. Validates required scope (e.g. `.from(table)` was called)
-2. Builds the path via route helpers in `lib-internal/routes/` (e.g. `DatabaseRoutes`)
-3. Appends query string from filters and graph params
-4. Dispatches to `client.httpClient` with the correct method and body
-
-```mermaid
-sequenceDiagram
-  participant App as Your_code
-  participant Builder as Database_builder
-  participant Routes as DatabaseRoutes
-  participant Http as HttpClient
-  participant API as Taruvi_API
-
-  App->>Builder: from().filters().page()
-  Note over Builder: New instance per step
-  App->>Builder: execute()
-  Builder->>Routes: buildRoute()
-  Routes-->>Builder: URL path + query
-  Builder->>Http: get/post/patch/delete
-  Http->>API: HTTP request
-  API-->>Http: response
-  Http-->>App: TaruviResponse
-```
-
-### State carried by `Database` (canonical example)
-
-| State | Set by | Used for |
-|-------|--------|----------|
-| `urlParams` | `from`, `get`, `edges` | Table name, record ID |
-| `queryParams` | `filters`, `sort`, `page`, `populate`, … | Query string |
-| `graphParams` | `include`, `depth`, `format`, `types` | Graph traversal |
-| `operation` | `get`, `create`, `update`, `delete`, … | HTTP method |
-| `body` | `create`, `update`, `delete` (edges) | Request payload |
-| `isEdges` | `edges()` | Route to `table_edges` |
-| `isUpsert` | `upsert()` | Append upsert path segment |
-
-`Storage`, `App`, and `Secrets` follow the same idea with their own param objects.
-
-## Builder vs direct clients
-
-| Pattern | When to use |
-|---------|-------------|
-| **Builder** | Request has many optional query params or path segments; you want fluent chaining |
-| **Direct** | Single endpoint, few parameters — call the method and await the result |
-
-Example — builder:
-
-```typescript
-await new Database(client)
-  .from('orders')
-  .filters('status', 'eq', 'pending')
-  .populate(['customer'])
-  .execute()
-```
-
-Example — direct:
-
-```typescript
-await new User(client).getUser('jane.doe')
-```
-
-## Anti-pattern: assuming mutation
-
-```typescript
-// Wrong mental model
-const query = new Database(client).from('accounts')
-query.filters('status', 'eq', 'active')
-query.page(2)  // If this mutated query, filters might be lost
-await query.execute()
-```
-
-```typescript
-// Correct — each step returns a new instance; keep the one you need
-const query = new Database(client)
-  .from('accounts')
-  .filters('status', 'eq', 'active')
-  .page(2)
-
-await query.execute()
-```
-
-Or branch from a shared base (see [Examples — immutable base](06-examples.md#immutable-base-queries)).
-
-## Same pattern on other services
-
-| Service | Entry | Terminal |
-|---------|-------|----------|
-| `Database` | `.from(table)` | `.execute()`, `.first()`, `.count()` |
-| `Storage` | `.from(bucket)` | `.execute()` |
-| `App` | `.roles()` or `.settings()` | `.execute()` |
-| `Secrets` | `.get(key)` | `.execute()` |
-
-## Next steps
-
-- [Clients overview](04-clients.md) — what each service does
-- [API reference](05-api-reference.md) — every chain method listed
-- [Examples](06-examples.md) — copy-paste chaining patterns
+Check the selected route, method, body, query, response shape, and sibling-query
+independence in the same review. Start with the
+[Database tests](../tests/unit/database/DatabaseClient.test.ts),
+[Storage tests](../tests/unit/storage/StorageClient.test.ts), and
+[contribution workflow](09-contributing.md). Usage examples belong in the
+[public method reference](https://docs.taruvi.cloud/docs/build/javascript-reference).

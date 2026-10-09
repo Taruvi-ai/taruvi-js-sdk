@@ -15,9 +15,11 @@ export class Functions {
     async execute<T = unknown>(functionSlug: string, options: FunctionRequest = {}): Promise<FunctionResponse<T>> {
         const url = `${FunctionRoutes.baseUrl(this.config.appSlug, functionSlug)}/execute/`
 
+        // Omit `async` unless the caller sets it, so the function's own
+        // default execution mode applies.
         const body = {
-            async: options.async ?? false,
-            params: {   
+            ...(options.async !== undefined && { async: options.async }),
+            params: {
                 ...options.params
             }
         }
