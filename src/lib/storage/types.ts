@@ -6,6 +6,7 @@ export interface BucketUrlParams {
     bucket?: string
     path?: string
     upload?: string
+    sign?: string
     delete?: string
     browse?: string
     accessMode?: 'view' | 'edit'
@@ -23,6 +24,34 @@ export interface StorageRequest {
     paths: string[]
     metadatas: object[]
 }
+
+export interface StorageUploadProgress {
+    /** Original file index; omitted for a batch request containing multiple small files. */
+    index?: number
+    loaded: number
+    total: number
+    phase: 'uploading' | 'finalizing' | 'complete'
+}
+
+export interface StorageUploadOptions {
+    onProgress?: (progress: StorageUploadProgress) => void
+    signal?: AbortSignal
+}
+
+/** Supply paths or object UUIDs, but not both. */
+export type StorageSignedUrlsRequest =
+    | { paths: string[]; objectUuids?: never; expiresIn: number }
+    | { objectUuids: string[]; paths?: never; expiresIn: number }
+
+export interface StorageSignedUrlResult {
+    input: string
+    path: string | null
+    object_uuid: string | null
+    signed_url: string | null
+    error: string | null
+}
+
+export type StorageSignedUrlsResponse = TaruviResponse<StorageSignedUrlResult[]>
 
 export interface StorageUpdateRequest {
     metadata?: Record<string, unknown>
@@ -65,7 +94,10 @@ export type StorageListResponse = TaruviResponse<StorageObject[]>
 export interface StorageUploadBatchResponse {
     status: "success" | "error"
     message: string
+    /** Backend success flag: false when no files were uploaded. */
+    success?: boolean
     data: {
+        message?: string
         uploaded_count: number
         failed_count: number
         total: number

@@ -87,6 +87,44 @@ describe('Storage', () => {
         })
     })
 
+    describe('createSignedUrls()', () => {
+        it('requests temporary download links for paths', async () => {
+            const response = {
+                status: 'success', message: 'Signed URL request completed.',
+                data: [{ input: 'reports/file.pdf', path: 'reports/file.pdf', object_uuid: 'object-id', signed_url: 'https://api.test.com/signed/', error: null }],
+            }
+            mockHttpClient.post.mockResolvedValue(response)
+
+            const result = await new Storage(mockClient).from('documents').createSignedUrls({
+                paths: ['reports/file.pdf'], expiresIn: 300,
+            }).execute()
+
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                'api/apps/test-app/storage/buckets/documents/objects/sign/',
+                { paths: ['reports/file.pdf'], expires_in: 300 },
+            )
+            expect(result).toBe(response)
+        })
+
+        it('supports object UUIDs and returns per-object errors unchanged', async () => {
+            const response = {
+                status: 'success', message: 'Signed URL request completed.',
+                data: [{ input: '00000000-0000-4000-8000-000000000001', path: null, object_uuid: null, signed_url: null, error: 'not_found_or_forbidden' }],
+            }
+            mockHttpClient.post.mockResolvedValue(response)
+
+            const result = await new Storage(mockClient).from('documents').createSignedUrls({
+                objectUuids: ['00000000-0000-4000-8000-000000000001'], expiresIn: 60,
+            }).execute()
+
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                'api/apps/test-app/storage/buckets/documents/objects/sign/',
+                { object_uuids: ['00000000-0000-4000-8000-000000000001'], expires_in: 60 },
+            )
+            expect(result).toBe(response)
+        })
+    })
+
     describe('upload()', () => {
         it('calls httpClient.post with FormData', async () => {
             const mockFile = new File(['content'], 'test.pdf', { type: 'application/pdf' })
