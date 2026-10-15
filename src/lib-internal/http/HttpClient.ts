@@ -108,9 +108,19 @@ export class HttpClient {
         }
     }
 
-    async post<T, D = unknown>(endpoint: string, body: D): Promise<T> {
+    async post<T, D = unknown>(endpoint: string, body: D, options?: {
+        headers?: Record<string, string>
+        signal?: AbortSignal
+        onUploadProgress?: (loaded: number, total?: number) => void
+    }): Promise<T> {
         try {
-            const { data } = await this.axiosInstance.post<T>(`/${endpoint}`, body)
+            const { data } = await this.axiosInstance.post<T>(`/${endpoint}`, body, {
+                ...(options?.headers && { headers: options.headers }),
+                ...(options?.signal && { signal: options.signal }),
+                ...(options?.onUploadProgress && {
+                    onUploadProgress: (event) => options.onUploadProgress?.(event.loaded, event.total),
+                }),
+            })
             return data
         } catch (error) {
             this.handleError(error)
@@ -126,9 +136,14 @@ export class HttpClient {
         }
     }
 
-    async delete<T, D = unknown>(endpoint: string, body?: D): Promise<T> {
+    async delete<T, D = unknown>(endpoint: string, body?: D, options?: {
+        headers?: Record<string, string>
+    }): Promise<T> {
         try {
-            const { data } = await this.axiosInstance.delete<T>(`/${endpoint}`, { data: body })
+            const { data } = await this.axiosInstance.delete<T>(`/${endpoint}`, {
+                data: body,
+                ...(options?.headers && { headers: options.headers }),
+            })
             return data
         } catch (error) {
             this.handleError(error)
