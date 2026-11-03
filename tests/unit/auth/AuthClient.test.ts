@@ -7,11 +7,13 @@ const mockTokenClient = {
     getToken: vi.fn(),
     getSessionToken: vi.fn(),
     clearTokens: vi.fn(),
+    setTokens: vi.fn(),
 }
 
 const mockHttpClient = {
     get: vi.fn(),
-    post: vi.fn()
+    post: vi.fn(),
+    send: vi.fn(),
 }
 
 const mockClient = {
@@ -136,6 +138,114 @@ describe('Auth', () => {
             const result = await auth.getCurrentUser()
 
             expect(result).toBeNull()
+        })
+    })
+
+    describe('headless flow', () => {
+        const authenticated = { status: 200, data: { status: 200, meta: { is_authenticated: true, session_token: 'tok-1' } } }
+
+        it('loginWithPassword stores the session token', async () => {
+            mockHttpClient.send.mockResolvedValue(authenticated)
+            const auth = new Auth(mockClient)
+            const result = await auth.loginWithPassword({ email: 'a@b.c', password: 'pw' })
+            expect(result).toEqual({ status: 'authenticated' })
+            expect(mockTokenClient.clearTokens).toHaveBeenCalled()
+            expect(mockHttpClient.send).toHaveBeenCalledWith('post', '_allauth/app/v1/auth/login', { email: 'a@b.c', password: 'pw' })
+            expect(mockTokenClient.setTokens).toHaveBeenCalledWith({ sessionToken: 'tok-1' })
+        })
+
+        it('loginWithPassword keeps the pending token when 2FA is required', async () => {
+            mockHttpClient.send.mockResolvedValue({
+                status: 401,
+                data: {
+                    status: 401,
+                    data: { flows: [{ id: 'login' }, { id: 'mfa_authenticate', is_pending: true, types: ['totp'] }] },
+                    meta: { is_authenticated: false, session_token: 'pending' },
+                },
+            })
+            const auth = new Auth(mockClient)
+            expect(await auth.loginWithPassword({ email: 'a@b.c', password: 'pw' })).toEqual({ status: 'mfa_required', types: ['totp'] })
+            // Not stored: a session check (Refine re-runs check() after login) would 401 and wipe it.
+            expect(mockTokenClient.setTokens).not.toHaveBeenCalled()
+
+            // A wrong code keeps the pending token so the user can retry.
+            mockHttpClient.send.mockResolvedValueOnce({ status: 400, data: { status: 400, errors: [{ message: 'Incorrect code.' }] } })
+            await expect(auth.mfaAuthenticate('000000')).rejects.toMatchObject({ statusCode: 400 })
+
+            mockHttpClient.send.mockResolvedValueOnce(authenticated)
+            expect(await auth.mfaAuthenticate('123456')).toEqual({ status: 'authenticated' })
+            expect(mockHttpClient.send).toHaveBeenLastCalledWith(
+                'post', '_allauth/app/v1/auth/2fa/authenticate', { code: '123456' }, { 'X-Session-Token': 'pending' }
+            )
+        })
+
+        it('loginWithPassword throws a validation error with field errors on 400', async () => {
+            mockHttpClient.send.mockResolvedValue({
+                status: 400,
+                data: { status: 400, errors: [{ message: 'The email address and/or password you specified are not correct.', code: 'email_password_mismatch', param: 'password' }] },
+            })
+            const auth = new Auth(mockClient)
+            await expect(auth.loginWithPassword({ email: 'a@b.c', password: 'bad' })).rejects.toMatchObject({
+                statusCode: 400,
+                message: 'The email address and/or password you specified are not correct.',
+                errors: { password: ['The email address and/or password you specified are not correct.'] },
+            })
+        })
+
+        it('mfaAuthenticate completes the login', async () => {
+            mockHttpClient.send.mockResolvedValue(authenticated)
+            const auth = new Auth(mockClient)
+            expect(await auth.mfaAuthenticate('123456')).toEqual({ status: 'authenticated' })
+            expect(mockHttpClient.send).toHaveBeenCalledWith('post', '_allauth/app/v1/auth/2fa/authenticate', { code: '123456' }, undefined)
+        })
+
+        it('signupWithPassword sends attributes as flat fields', async () => {
+            mockHttpClient.send.mockResolvedValue(authenticated)
+            const auth = new Auth(mockClient)
+            await auth.signupWithPassword({ email: 'a@b.c', password: 'pw', firstName: 'Jo', attributes: { department: 'ops' } })
+            expect(mockHttpClient.send).toHaveBeenCalledWith('post', '_allauth/app/v1/auth/signup', {
+                department: 'ops', email: 'a@b.c', password: 'pw', first_name: 'Jo',
+            })
+        })
+
+        it('signupWithPassword throws ForbiddenError when signup is closed', async () => {
+            mockHttpClient.send.mockResolvedValue({ status: 403, data: { status: 403 } })
+            const auth = new Auth(mockClient)
+            await expect(auth.signupWithPassword({ email: 'a@b.c', password: 'pw' })).rejects.toMatchObject({ statusCode: 403 })
+        })
+
+        it('requestPasswordReset passes reset_url', async () => {
+            mockHttpClient.send.mockResolvedValue({ status: 200, data: { status: 200 } })
+            const auth = new Auth(mockClient)
+            await auth.requestPasswordReset('a@b.c', 'https://app.example.org/update-password')
+            expect(mockHttpClient.send).toHaveBeenCalledWith('post', '_allauth/app/v1/auth/password/request', {
+                email: 'a@b.c', reset_url: 'https://app.example.org/update-password',
+            })
+        })
+
+        it('resetPassword logs in on success and reports unauthenticated on plain 401', async () => {
+            const auth = new Auth(mockClient)
+            mockHttpClient.send.mockResolvedValueOnce(authenticated)
+            expect(await auth.resetPassword('k', 'pw')).toEqual({ status: 'authenticated' })
+            mockHttpClient.send.mockResolvedValueOnce({ status: 401, data: { status: 401, data: { flows: [] }, meta: { is_authenticated: false } } })
+            expect(await auth.resetPassword('k', 'pw')).toEqual({ status: 'unauthenticated' })
+        })
+
+        it('logoutSession deletes the session and always clears the token', async () => {
+            mockTokenClient.isAuthenticated.mockReturnValue(true)
+            mockHttpClient.send.mockResolvedValue({ status: 401, data: {} })
+            const auth = new Auth(mockClient)
+            await auth.logoutSession()
+            expect(mockHttpClient.send).toHaveBeenCalledWith('delete', '_allauth/app/v1/auth/session')
+            expect(mockTokenClient.clearTokens).toHaveBeenCalled()
+        })
+
+        it('logoutSession clears the token and does not throw when offline', async () => {
+            mockTokenClient.isAuthenticated.mockReturnValue(true)
+            mockHttpClient.send.mockRejectedValue(new Error('Network Error'))
+            const auth = new Auth(mockClient)
+            await expect(auth.logoutSession()).resolves.toBeUndefined()
+            expect(mockTokenClient.clearTokens).toHaveBeenCalled()
         })
     })
 })

@@ -135,6 +135,27 @@ export class HttpClient {
         }
     }
 
+    /**
+     * Send a request and return status + body for ANY HTTP status (no throw, no token clearing).
+     * Used by allauth headless auth calls, where 401/400 bodies carry flow state
+     * (e.g. a pending 2FA session token) that must not be discarded.
+     * Network failures still throw NetworkError.
+     */
+    async send<T>(method: 'get' | 'post' | 'delete', endpoint: string, body?: unknown, headers?: Record<string, string>): Promise<{ status: number; data: T }> {
+        try {
+            const response = await this.axiosInstance.request<T>({
+                method,
+                url: `/${endpoint}`,
+                data: body,
+                ...(headers && { headers }),
+                validateStatus: () => true,
+            })
+            return { status: response.status, data: response.data }
+        } catch (error) {
+            this.handleError(error)
+        }
+    }
+
     async patch<T, D = unknown>(endpoint: string, body: D): Promise<T> {
         try {
             const { data } = await this.axiosInstance.patch<T>(`/${endpoint}`, body)

@@ -8,6 +8,7 @@ export type { ErrorResponseBody, BillingErrorCode } from "./lib-internal/errors/
 
 // Export public client classes
 export { Auth } from "./lib/auth/AuthClient.js"
+export type { HeadlessAuthResult, PasswordLoginParams, PasswordSignupParams } from "./lib/auth/AuthClient.js"
 export { User } from "./lib/users/UserClient.js"
 export { Storage } from "./lib/storage/StorageClient.js"
 export { Database } from "./lib/database/DatabaseClient.js"
