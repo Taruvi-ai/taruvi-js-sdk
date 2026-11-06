@@ -1318,4 +1318,6 @@ const client = new Client({
 
 ---
 
+https://taruvibase.com/?utm_source=github&utm_medium=readme&utm_campaign=taruvi-js-sdk
+
 **Generated from production code examples • Last updated: 2026-01-12**
