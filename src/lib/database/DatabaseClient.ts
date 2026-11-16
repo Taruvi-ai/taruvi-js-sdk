@@ -2,7 +2,7 @@ import type { Client } from "../../client.js";
 import { DatabaseRoutes } from "../../lib-internal/routes/DatabaseRoutes.js";
 import { HttpMethod } from "../../lib-internal/http/types.js";
 import type { TaruviConfig, DatabaseFilters, TaruviResponse } from "../../types.js";
-import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterTreeRoot } from "./types.js";
+import type { UrlParams, FilterOperator, SortOrder, GraphInclude, GraphFormat, EdgeRequest, BackendFilterNode, BackendFilterTreeRoot, VectorSearchOptions, HybridSearchOptions } from "./types.js";
 import { isBackendFilterTreeRoot } from "./types.js";
 import { buildQueryString } from "../../utils/utils.js";
 
@@ -10,7 +10,24 @@ import { buildQueryString } from "../../utils/utils.js";
 // ones that only shape a read, and refuses the ones that narrow which rows match:
 // dropping those would delete more rows than the same query reads.
 const READ_SHAPE_PARAMS = new Set(['ordering', 'populate', 'fields', 'allowed_actions'])
-const SELECTION_PARAMS = new Set(['page', 'page_size', 'search', '_aggregate', '_group_by', '_having'])
+const SELECTION_PARAMS = new Set([
+    'page', 'page_size', 'search', '_aggregate', '_group_by', '_having',
+    '_topk', '_vector_threshold', '_vector_ef_search', '_vector_metric', '_hybrid_strategy', '_hybrid_alpha',
+])
+const VECTOR_SUFFIX = '__vector_near'
+
+/** GET and filtered-delete URLs keep the legacy comma-separated filter values. */
+function legacyFilterValue(value: unknown): unknown {
+    return Array.isArray(value) ? value.join(',') : value
+}
+
+/** A `filters()` tree node in the platform's filter-object form: `{ field__op: value }` or `{ or: [...] }`. */
+function toFilterObject(node: BackendFilterNode): Record<string, unknown> {
+    if ('field' in node) {
+        return { [node.operator === 'eq' ? node.field : `${node.field}__${node.operator}`]: node.value }
+    }
+    return { [node.operator]: node.value.map(toFilterObject) }
+}
 
 interface GraphQueryParams {
     include?: GraphInclude
@@ -90,7 +107,7 @@ export class Database<T = Record<string, unknown>> {
             const operator = arg1
             const value = arg2
             const filterKey = operator === 'eq' ? field : `${field}__${operator}`
-            const filterValue = Array.isArray(value) ? value.join(',') : value
+            const filterValue = Array.isArray(value) ? [...value] : value
             return new Database<T>(this.client, { ...this.urlParams }, undefined, undefined, {
                 ...this.queryParams,
                 [filterKey]: filterValue
@@ -167,6 +184,30 @@ export class Database<T = Record<string, unknown>> {
             ...this.queryParams,
             search: query
         }, { ...this.graphParams }, this.isEdges)
+    }
+
+    /**
+     * Nearest-neighbour search on a vector field. The query is sent as a JSON body to
+     * `POST …/data/query/`, since an embedding is too long for a URL.
+     */
+    vectorSearch(field: string, vector: number[], options: VectorSearchOptions = {}): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, {
+            ...this.queryParams,
+            [`${field}${VECTOR_SUFFIX}`]: JSON.stringify(vector),
+            _topk: options.topk,
+            _vector_threshold: options.threshold,
+            _vector_ef_search: options.efSearch,
+            _vector_metric: options.metric,
+        }, { ...this.graphParams }, this.isEdges, this.isUpsert)
+    }
+
+    /** Fuses `vectorSearch()` with full-text `search()` ranking; needs both. */
+    hybrid(options: HybridSearchOptions = {}): Database<T> {
+        return new Database<T>(this.client, { ...this.urlParams }, this.operation, this.body, {
+            ...this.queryParams,
+            _hybrid_strategy: options.strategy ?? 'rrf',
+            _hybrid_alpha: options.alpha,
+        }, { ...this.graphParams }, this.isEdges, this.isUpsert)
     }
 
     /** Restrict SELECT to named columns (`?fields=a,b,c`). */
@@ -265,8 +306,8 @@ export class Database<T = Record<string, unknown>> {
         const unsupported: string[] = []
         for (const [key, value] of Object.entries(this.queryParams ?? {})) {
             if (value === undefined || READ_SHAPE_PARAMS.has(key)) continue
-            if (SELECTION_PARAMS.has(key)) unsupported.push(key)
-            else filter[key] = value
+            if (SELECTION_PARAMS.has(key) || key.endsWith(VECTOR_SUFFIX)) unsupported.push(key)
+            else filter[key] = legacyFilterValue(value)
         }
         if (Object.keys(filter).length === 0) {
             throw new Error('deleteFiltered() requires at least one filter. Call .filters(...) first.')
@@ -307,6 +348,31 @@ export class Database<T = Record<string, unknown>> {
         return this.isEdges ? `${table}_edges` : table
     }
 
+    /** The read as the JSON body of `POST …/data/query/`: the same options, typed, with the vector in `vector`. */
+    private toQueryBody(vectorKey: string): Record<string, unknown> {
+        const {
+            filters: tree, search, ordering, fields, populate, page, page_size, allowed_actions,
+            _aggregate, _group_by, _having, _topk, _vector_threshold, _vector_ef_search, _vector_metric,
+            _hybrid_strategy, _hybrid_alpha, [vectorKey]: vector, ...conditions
+        } = this.queryParams ?? {}
+        const filters: Record<string, unknown> = tree
+            ? { ...conditions, and: (JSON.parse(String(tree)) as BackendFilterTreeRoot).map(toFilterObject) }
+            : conditions
+        return {
+            filters: Object.keys(filters).length > 0 ? filters : undefined,
+            search, ordering, fields, populate, page, page_size,
+            allowed_actions: allowed_actions ? String(allowed_actions).split(',') : undefined,
+            aggregate: _aggregate, group_by: _group_by, having: _having,
+            vector: {
+                field: vectorKey.slice(0, -VECTOR_SUFFIX.length),
+                value: JSON.parse(String(vector)),
+                topk: _topk, threshold: _vector_threshold, ef_search: _vector_ef_search, metric: _vector_metric,
+            },
+            hybrid: _hybrid_strategy && search ? { strategy: _hybrid_strategy, alpha: _hybrid_alpha } : undefined,
+            ...this.graphParams,
+        }
+    }
+
     private buildRoute(): string {
         const tableName = this.getTableName()
         const base = DatabaseRoutes.baseUrl(this.config.appSlug) +
@@ -316,7 +382,10 @@ export class Database<T = Record<string, unknown>> {
             '/'
 
         // Merge database filters and graph params into one query string
-        const allParams: Record<string, unknown> = { ...this.queryParams, ...this.graphParams }
+        const filters = Object.fromEntries(
+            Object.entries(this.queryParams ?? {}).map(([key, value]) => [key, legacyFilterValue(value)])
+        )
+        const allParams: Record<string, unknown> = { ...filters, ...this.graphParams }
         return base + buildQueryString(allParams)
     }
 
@@ -325,9 +394,14 @@ export class Database<T = Record<string, unknown>> {
             throw new Error('Table name is required. Call .from(tableName) first.')
         }
 
-        const url = this.buildRoute()
         const operation = this.operation || HttpMethod.GET
+        const vectorKey = Object.keys(this.queryParams ?? {}).find(key => key.endsWith(VECTOR_SUFFIX))
+        if (vectorKey && operation === HttpMethod.GET && !this.urlParams.recordId) {
+            const route = DatabaseRoutes.baseUrl(this.config.appSlug) + DatabaseRoutes.dataTables(this.getTableName()) + DatabaseRoutes.query() + '/'
+            return await this.client.httpClient.post(route, this.toQueryBody(vectorKey))
+        }
 
+        const url = this.buildRoute()
         switch (operation) {
             case HttpMethod.POST:
                 return await this.client.httpClient.post(url, this.body)

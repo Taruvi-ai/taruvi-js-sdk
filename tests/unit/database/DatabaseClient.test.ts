@@ -647,6 +647,62 @@ describe('Database', () => {
                 expect.stringContaining('api/apps/test-app/datatables/accounts/data/?')
             )
         })
+
+        it('refuses a vector search', () => {
+            expect(() => new Database(mockClient).from('docs').filters('team', 'eq', 'a').vectorSearch('embedding', [0.1]).deleteFiltered())
+                .toThrow("can't narrow a delete by")
+        })
+    })
+
+    describe('vectorSearch() and hybrid()', () => {
+        const route = 'api/apps/test-app/datatables/docs/data/query/'
+
+        it('POSTs the embedding in a JSON body instead of the URL', async () => {
+            mockHttpClient.post.mockResolvedValue({ data: [], total: 0 })
+            await new Database(mockClient).from('docs')
+                .vectorSearch('embedding', [0.12, -0.03], { topk: 20, metric: 'cosine', efSearch: 40 })
+                .pageSize(10)
+                .execute()
+            expect(mockHttpClient.get).not.toHaveBeenCalled()
+            expect(mockHttpClient.post).toHaveBeenCalledWith(route, expect.objectContaining({
+                page_size: 10,
+                vector: { field: 'embedding', value: [0.12, -0.03], topk: 20, threshold: undefined, ef_search: 40, metric: 'cosine' },
+            }))
+        })
+
+        it('sends flat filters and a filter tree together in filters', async () => {
+            mockHttpClient.post.mockResolvedValue({ data: [], total: 0 })
+            const tree = [{ operator: 'or' as const, value: [{ field: 'team', operator: 'eq', value: 'a' }, { field: 'stars', operator: 'gte', value: 3 }] }]
+            await new Database(mockClient).from('docs')
+                .filters('status', 'eq', 'published')
+                .filters(tree)
+                .vectorSearch('embedding', [0.1])
+                .execute()
+            expect(mockHttpClient.post.mock.calls[0][1].filters).toEqual({
+                status: 'published',
+                and: [{ or: [{ team: 'a' }, { stars__gte: 3 }] }],
+            })
+        })
+
+        it('adds hybrid fusion with full-text search', async () => {
+            mockHttpClient.post.mockResolvedValue({ data: [], total: 0 })
+            await new Database(mockClient).from('docs')
+                .vectorSearch('embedding', [0.1], { topk: 20 })
+                .search('release planning')
+                .hybrid({ alpha: 0.7 })
+                .execute()
+            expect(mockHttpClient.post).toHaveBeenCalledWith(route, expect.objectContaining({
+                search: 'release planning',
+                hybrid: { strategy: 'rrf', alpha: 0.7 },
+            }))
+        })
+
+        it('leaves reads without a vector on GET', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: [], total: 0 })
+            await new Database(mockClient).from('docs').search('release').execute()
+            expect(mockHttpClient.post).not.toHaveBeenCalled()
+            expect(mockHttpClient.get).toHaveBeenCalledWith(expect.stringContaining('data/?search=release'))
+        })
     })
 
     describe('edges()', () => {

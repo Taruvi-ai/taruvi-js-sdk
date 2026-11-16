@@ -120,5 +120,5 @@ export interface DatabaseFilters {
     filters?: string
 
     // Dynamic filters - allows any field with operators
-    [key: string]: string | number | boolean | undefined
+    [key: string]: string | number | boolean | (string | number | boolean)[] | undefined
 }
