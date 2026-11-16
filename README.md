@@ -39,6 +39,27 @@ before making authenticated browser requests. Server code can use
 `authMode: 'apiKey'` with an `apiKey`, or act as a user with a session `token`.
 Keep API keys on the server; see [server authentication](https://docs.taruvi.cloud/docs/build/javascript-authentication#call-taruvibase-from-a-server).
 
+## Vector queries (beta)
+
+Requires a platform version with `POST /api/apps/{app}/datatables/{table}/data/query/`.
+Given a `queryEmbedding: number[]` matching the vector field's configured dimensions:
+
+```typescript
+await new Database(client)
+  .from('documents')
+  .filters('rating', 'between', [1, 3])
+  .vectorSearch('embedding', queryEmbedding, {topk: 20})
+  .execute()
+```
+
+The embedding and filters go in JSON; list filters stay arrays, including empty
+lists and elements containing commas. Add `.search('release planning').hybrid()`
+for hybrid ranking on a table configured for full-text search. Hybrid options
+apply only when text search and a vector are both present.
+
+Ordinary lists and `.get(id)` remain GET requests. GET filters and filtered deletes
+keep their existing URL encoding. Existing calls and response shapes remain compatible.
+
 ## Documentation
 
 - [JavaScript SDK guide](https://docs.taruvi.cloud/docs/build/javascript): installation, client setup, requests, responses, and errors.

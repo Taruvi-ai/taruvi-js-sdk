@@ -90,6 +90,32 @@ export type DatabaseSingleResponse<T = unknown> = TaruviResponse<T>
 // Graph traversal types
 export type GraphFormat = 'flat' | 'tree' | 'graph'
 
+// Vector and hybrid search
+export interface VectorSearchOptions {
+    /** Candidate window; the platform defaults to 10 and caps it at 1,000. */
+    topk?: number
+    /** Maximum distance for `cosine` and `l2`; minimum inner product for `ip`. */
+    threshold?: number
+    /** HNSW search breadth, 1 to 1,000. */
+    efSearch?: number
+    /** Must match the field's configured distance. */
+    metric?: 'cosine' | 'l2' | 'ip'
+}
+
+export interface HybridSearchOptions {
+    strategy?: 'rrf'
+    /** 0 ranks by full-text only, 1 by the vector only; the platform defaults to 0.5. */
+    alpha?: number
+}
+
+/** Score fields added to rows returned by a vector or hybrid search. */
+export interface SearchScores {
+    _vector_score?: number
+    _similarity_score?: number
+    _hybrid_score?: number
+    _fts_score?: number
+}
+
 // Edge types
 export interface EdgeRequest {
     from_id: number | string
